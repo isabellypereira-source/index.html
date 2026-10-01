@@ -1,5 +1,5 @@
 --- crm.orig.gs	2026-10-01 15:21:51.488668935 +0000
-+++ crm.gs	2026-10-01 15:40:57.093588952 +0000
++++ crm.gs	2026-10-01 16:43:36.313461489 +0000
 @@ -105,7 +105,9 @@
  // acrescentar {chave: 'mig_AAAA_MM_DD_nome', fn: suaFuncao} na lista abaixo.
  var MIGRACOES_ = [
@@ -11,14 +11,15 @@
  ];
  function rodarMigracoes_() {
    var props = PropertiesService.getScriptProperties();
-@@ -233,20 +235,24 @@
+@@ -233,20 +235,25 @@
  function saveLead(o) {
    var lock = LockService.getScriptLock(); lock.waitLock(20000);
    try {
 -    var novo = !o.ID;
 +    var novo = !o.ID, donoAntes = '';
-+    if (!novo) donoAntes = guardLead_(o.ID, o.quem).donoAntes;
-+    else { var dd = leadDuplicado_(o.Estabelecimento, o.Instagram, o.WhatsApp || o.Telefone); if (dd) throw new Error('🔒 Este lead já existe: "' + dd.nome + '"' + (dd.dono ? ' (de ' + dd.dono + ')' : ' (sem responsável)') + '. Não é possível criar de novo.'); }
++    if (!novo) donoAntes = guardLead_(o.ID, o.quem, 'editou os dados').donoAntes;
++    else { var dd = leadDuplicado_(o.Estabelecimento, o.Instagram, o.WhatsApp || o.Telefone); if (dd) throw new Error('Este lead já existe: "' + dd.nome + '"' + (dd.dono ? ' (de ' + dd.dono + ')' : ' (sem responsável)') + '. Abra o lead existente em vez de criar de novo.'); }
++    if (!novo && donoAntes && o['Responsável'] && o['Responsável'] !== donoAntes && quemSou_(o.quem) !== donoAntes) o['Responsável'] = donoAntes; // só o dono transfere
      var id = writeLead_(o);
      var atvs = [];
 +    if (!novo && donoAntes && o['Responsável'] && o['Responsável'] !== donoAntes) { atvs.push(logAtv_({ leadId: id, nome: o.Estabelecimento || '', tipo: 'Sistema', texto: 'Lead transferido de ' + donoAntes + ' para ' + o['Responsável'] })); notificar_([o['Responsável']], o.Estabelecimento || '', donoAntes + ' transferiu este lead para você', id); }
@@ -34,19 +35,19 @@
    var lock = LockService.getScriptLock(); lock.waitLock(20000);
    try {
      var L = sh_('Leads'), r = rowOf_(L, id); if (r < 0) throw new Error('Lead não encontrado');
-+    guardLead_(id, quem);
++    guardLead_(id, quem, 'moveu para ' + etapa);
      var h = L.getRange(1, 1, 1, L.getLastColumn()).getValues()[0];
      var row = L.getRange(r, 1, 1, h.length).getValues()[0];
      var antes = row[h.indexOf('Etapa')];
-@@ -272,6 +278,7 @@
+@@ -272,6 +279,7 @@
    var t0 = Date.now(); // TEMP Fase 1: medir ganho de performance — remover depois de aprovado
    var lock = LockService.getScriptLock(); lock.waitLock(20000);
    try {
-+    if (a.leadId && a.tipo !== 'Comentário') guardLead_(a.leadId, a.quem); // só o dono age; comentários com @ continuam livres
++    if (a.leadId && a.tipo !== 'Comentário') guardLead_(a.leadId, a.quem, 'registrou ' + String(a.tipo || 'contato').toLowerCase() + (a.resultado ? ' (' + a.resultado + ')' : '') + (a.novaEtapa ? ' e moveu para ' + a.novaEtapa : ''));
      // Leitura única da aba Atividades (reaproveitada pela regra de "1 contato/dia" e pela de "5+ sem resposta" —
      // antes eram 2 leituras completas da aba por ação)
      var atv, aLI, aTI, aDI, aRI;
-@@ -344,11 +351,12 @@
+@@ -344,11 +352,12 @@
  }
  
  /** Reativa um lead Frio → volta para "Contato feito" */
@@ -56,11 +57,11 @@
    try {
      var L = sh_('Leads'), r = rowOf_(L, id);
      if (r < 0) throw new Error('Lead não encontrado');
-+    guardLead_(id, quem);
++    guardLead_(id, quem, 'reativou o lead');
      var h = L.getRange(1, 1, 1, L.getLastColumn()).getValues()[0];
      var etapaAtual = L.getRange(r, h.indexOf('Etapa') + 1).getValue();
      if (etapaAtual !== 'Frio') throw new Error('Lead não está como Frio');
-@@ -377,10 +385,10 @@
+@@ -377,10 +386,10 @@
    });
  }
  
@@ -69,11 +70,11 @@
    var lock = LockService.getScriptLock(); lock.waitLock(20000);
    try {
 -    ids.forEach(function (id) { var u = { ID: id, Etapa: etapa }; if (responsavel) u['Responsável'] = responsavel; writeLead_(u); });
-+    ids.forEach(function (id) { guardLead_(id, quem); var u = { ID: id, Etapa: etapa }; if (responsavel) u['Responsável'] = responsavel; writeLead_(u); });
++    ids.forEach(function (id) { var dn = leadDono_(id); guardLead_(id, quem, 'moveu para ' + etapa + ' (em lote)'); var u = { ID: id, Etapa: etapa }; if (responsavel && (!dn || dn === quemSou_(quem))) u['Responsável'] = responsavel; writeLead_(u); });
      var atv1 = logAtv_({ tipo: 'Sistema', texto: ids.length + ' lead(s) movidos para ' + etapa + (responsavel ? ' (resp.: ' + responsavel + ')' : '') });
      return { leads: ids.map(leadLeve_), atividades: [atv1] };
    } finally { lock.releaseLock(); }
-@@ -496,6 +504,7 @@
+@@ -496,6 +505,7 @@
  }
  
  // ------------------------------------------------------------------ Google Maps (Places API New)
@@ -81,7 +82,7 @@
  function searchPlaces(query, cidade) {
    var key = setting_('Google Maps API Key');
    if (!key) throw new Error('Cadastre a chave do Google Maps na aba Config (célula J2).');
-@@ -504,7 +513,7 @@
+@@ -504,7 +514,7 @@
      method: 'post', contentType: 'application/json', muteHttpExceptions: true, payload: JSON.stringify(body),
      headers: {
        'X-Goog-Api-Key': key,
@@ -90,7 +91,7 @@
      }
    });
    var js = JSON.parse(res.getContentText() || '{}');
-@@ -518,7 +527,7 @@
+@@ -518,7 +528,7 @@
      return {
        placeId: p.id, nome: nome, endereco: p.formattedAddress || '', telefone: p.nationalPhoneNumber || '', telIntl: p.internationalPhoneNumber || '',
        site: p.websiteUri || '', maps: p.googleMapsUri || '', nota: p.rating || '', avaliacoes: p.userRatingCount || 0,
@@ -99,7 +100,7 @@
        jaExiste: !!(existP[p.id] || existN[norm_(nome)] || dupDe_(nome, '', p.nationalPhoneNumber || ''))
      };
    });
-@@ -533,7 +542,7 @@
+@@ -533,7 +543,7 @@
          Estabelecimento: p.nome, Segmento: segmento || '', Cidade: cidade || '', Bairro: p.endereco,
          WhatsApp: cel ? p.telefone : '', Telefone: cel ? '' : p.telefone, Site: p.site, 'Google Maps': p.maps, 'Place ID': p.placeId,
          Origem: 'Google Maps', Etapa: 'Sugerido',
@@ -108,19 +109,19 @@
        });
      });
      logAtv_({ tipo: 'Sistema', texto: list.length + ' sugestão(ões) importadas do Google Maps' + (cidade ? ' · ' + cidade : '') });
-@@ -643,6 +652,7 @@
+@@ -643,6 +653,7 @@
    var lock = LockService.getScriptLock(); lock.waitLock(20000);
    try {
      var cont = {};
-+    ids = ids.filter(function (id) { return !leadDono_(id); }); // nunca redistribui lead que já tem dono
++    ids = ids.filter(function (id) { return !leadDono_(id); }); // distribuição nunca tira lead de quem já tem dono
      ids.forEach(function (id) { var n = proximoRodizio_(); cont[n] = (cont[n] || 0) + 1; writeLead_({ ID: id, 'Responsável': n }); });
      logAtv_({ tipo: 'Sistema', texto: ids.length + ' lead(s) sem dono distribuídos: ' + Object.keys(cont).map(function (k) { return k + ' ' + cont[k]; }).join(', ') });
      return getAll();
-@@ -653,6 +663,7 @@
+@@ -653,6 +664,7 @@
  function addTask(t) {
    var lock = LockService.getScriptLock(); lock.waitLock(20000);
    try {
-+    if (t.leadId) guardLead_(t.leadId, t.quem);
++    if (t.leadId) guardLead_(t.leadId, t.quem, 'criou uma tarefa');
      var A = sh_('Atividades'), me = me_(), nome = '';
      if (t.leadId) { var L = sh_('Leads'), r = rowOf_(L, t.leadId); if (r > 0) nome = L.getRange(r, CFG.LEAD_COLS.indexOf('Estabelecimento') + 1).getValue(); }
      A.appendRow([newId_('T'), new Date(), t.leadId || '', nome, me.nome || me.email, 'Tarefa', '', 'Aberta', t.texto || '', t.pessoa || me.nome || '', t.prazo ? parseDay_(t.prazo) : '', '']);

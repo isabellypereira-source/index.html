@@ -26,7 +26,8 @@ const H={
  registrarSellout:o=>{mon.sellout.push({data:o.data,cliente:o.cliente,un:+o.un,obs:o.obs,autor:'Isa'});return inteligencia()},
  salvarFicha:o=>{mon.fichas[M.nrm_(o.cliente)]={cliente:o.cliente,ticketCardapio:+o.ticketCardapio||0,publico:o.publico,noCardapio:o.noCardapio,desde:o.desde,posicao:o.posicao,pedidosSemana:+o.pedidosSemana||0,motivo:o.motivo,acoes:o.acoes,notas:o.notas};return inteligencia()},
  salvarCliente:o=>{let c=mon.clientes.find(c=>c.nome===o.nome);if(!c){c={nome:o.nome};mon.clientes.push(c)}Object.assign(c,{tipo:o.tipo,cidade:o.cidade,ciclo:+o.ciclo||0,antec:+o.antec||0,obs:o.obs,motivo:o.motivo});return inteligencia()},
- registrarEntregaAmostra:o=>inteligencia()
+ registrarEntregaAmostra:o=>inteligencia(),
+ getAvisos:(quem)=>{if(!H._av&&quem==='Isa'){H._av=1;const l=crm.leads.find(x=>x['Responsável']==='Isa'&&x.Etapa!=='Sugerido');const now=new Date().toISOString().slice(0,19);crm.atividades.push({ID:'AVx',Data:now,'Lead ID':l?l.ID:'',Estabelecimento:l?l.Estabelecimento:'',Autor:'Maria',Tipo:'Aviso',Canal:'',Resultado:'',Texto:'Maria registrou contato (Respondeu) no lead “'+(l?l.Estabelecimento:'')+'” (de Isa)','Menções':'Isa'});return [crm.atividades[crm.atividades.length-1]]}return []}
 };
 const server=http.createServer((req,res)=>{
  if(req.method==='POST'&&req.url.startsWith('/rpc/')){let b='';req.on('data',c=>b+=c);req.on('end',()=>{const fn=req.url.slice(5);try{const out=H[fn]?H[fn](...JSON.parse(b||'[]')):{};res.setHeader('content-type','application/json');res.end(JSON.stringify({result:out}))}catch(e){res.end(JSON.stringify({error:String(e.message||e)}))}});return}

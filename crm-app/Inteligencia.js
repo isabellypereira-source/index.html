@@ -594,12 +594,28 @@ function leadDono_(id) {
   var h = L.getRange(1, 1, 1, L.getLastColumn()).getValues()[0];
   return String(L.getRange(r, h.indexOf('Responsável') + 1).getValue() || '').trim();
 }
-/** Bloqueia quem não é o dono; se o lead não tem dono, quem agir primeiro fica com ele. Retorna {eu, donoAntes}. */
-function guardLead_(id, quem) {
+/** Agir em lead de outra pessoa é permitido, mas o dono é AVISADO (pop-up) e a ação aparece no Mural e na linha do tempo do lead.
+ *  Lead sem dono fica com quem agir primeiro. Retorna {eu, donoAntes}. */
+function guardLead_(id, quem, acao) {
   var eu = quemSou_(quem), dono = leadDono_(id);
-  if (dono && dono !== eu) throw new Error('🔒 Este lead é de ' + dono + '. Só ' + dono + ' pode agir nele; peça para ' + dono + ' transferir o lead para você.');
   if (!dono) writeLead_({ ID: id, 'Responsável': eu });
+  else if (dono !== eu) avisarDono_(id, dono, eu, acao);
   return { eu: eu, donoAntes: dono };
+}
+function avisarDono_(id, dono, eu, acao) {
+  var L = sh_('Leads'), r = rowOf_(L, id); if (r < 0) return;
+  var h = L.getRange(1, 1, 1, L.getLastColumn()).getValues()[0], nome = L.getRange(r, h.indexOf('Estabelecimento') + 1).getValue();
+  logAtv_({ leadId: id, nome: nome, tipo: 'Aviso', autor: eu, texto: eu + ' ' + (acao || 'fez uma ação') + ' no lead “' + nome + '” (de ' + dono + ')', mencoes: dono });
+}
+/** Avisos ainda não vistos para uma pessoa (a tela mostra como pop-up). desde = ISO. */
+function getAvisos(quem, desde) {
+  var A = sh_('Atividades'), n = A.getLastRow(); if (n < 2 || !quem) return [];
+  var h = A.getRange(1, 1, 1, A.getLastColumn()).getValues()[0], ini = Math.max(2, n - 399), v = A.getRange(ini, 1, n - ini + 1, h.length).getValues();
+  var iT = h.indexOf('Tipo'), iM = h.indexOf('Menções'), iD = h.indexOf('Data'), d0 = desde ? new Date(desde) : new Date(Date.now() - 864e5);
+  return v.filter(function (r) {
+    if (r[iT] !== 'Aviso' || !(r[iD] instanceof Date) || r[iD] <= d0) return false;
+    return String(r[iM] || '').split(',').map(function (x) { return x.trim(); }).indexOf(quem) >= 0;
+  }).reverse().slice(0, 20).map(function (r) { return serializeRow_(h, r); });
 }
 function leadDuplicado_(nome, insta, fone) {
   var d = dupDe_(nome, insta, fone, ''); if (!d) return null;
