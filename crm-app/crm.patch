@@ -1,0 +1,47 @@
+--- crm.orig.gs	2026-10-01 15:21:51.488668935 +0000
++++ crm.gs	2026-10-01 15:21:51.491842998 +0000
+@@ -105,7 +105,8 @@
+ // acrescentar {chave: 'mig_AAAA_MM_DD_nome', fn: suaFuncao} na lista abaixo.
+ var MIGRACOES_ = [
+   { chave: 'mig_2026_10_01_ajustes8', fn: ajustes8 },
+-  { chave: 'mig_2026_10_01_limparDuplicatasAtv', fn: limparDuplicatasAtv }
++  { chave: 'mig_2026_10_01_limparDuplicatasAtv', fn: limparDuplicatasAtv },
++  { chave: 'mig_2026_10_02_monitoramento_v1', fn: function () { return migrarMonitoramentoV1_(); } } // função em Inteligencia.js (lazy: arquivos carregam em ordem)
+ ];
+ function rodarMigracoes_() {
+   var props = PropertiesService.getScriptProperties();
+@@ -496,6 +497,7 @@
+ }
+ 
+ // ------------------------------------------------------------------ Google Maps (Places API New)
++var PRECO_MAPS_ = { PRICE_LEVEL_INEXPENSIVE: '$', PRICE_LEVEL_MODERATE: '$$', PRICE_LEVEL_EXPENSIVE: '$$$', PRICE_LEVEL_VERY_EXPENSIVE: '$$$$' };
+ function searchPlaces(query, cidade) {
+   var key = setting_('Google Maps API Key');
+   if (!key) throw new Error('Cadastre a chave do Google Maps na aba Config (célula J2).');
+@@ -504,7 +506,7 @@
+     method: 'post', contentType: 'application/json', muteHttpExceptions: true, payload: JSON.stringify(body),
+     headers: {
+       'X-Goog-Api-Key': key,
+-      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.rating,places.userRatingCount,places.primaryTypeDisplayName,places.businessStatus'
++      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.rating,places.userRatingCount,places.primaryTypeDisplayName,places.businessStatus,places.priceLevel'
+     }
+   });
+   var js = JSON.parse(res.getContentText() || '{}');
+@@ -518,7 +520,7 @@
+     return {
+       placeId: p.id, nome: nome, endereco: p.formattedAddress || '', telefone: p.nationalPhoneNumber || '', telIntl: p.internationalPhoneNumber || '',
+       site: p.websiteUri || '', maps: p.googleMapsUri || '', nota: p.rating || '', avaliacoes: p.userRatingCount || 0,
+-      tipo: p.primaryTypeDisplayName ? p.primaryTypeDisplayName.text : '',
++      tipo: p.primaryTypeDisplayName ? p.primaryTypeDisplayName.text : '', preco: PRECO_MAPS_[p.priceLevel] || '',
+       jaExiste: !!(existP[p.id] || existN[norm_(nome)] || dupDe_(nome, '', p.nationalPhoneNumber || ''))
+     };
+   });
+@@ -533,7 +535,7 @@
+         Estabelecimento: p.nome, Segmento: segmento || '', Cidade: cidade || '', Bairro: p.endereco,
+         WhatsApp: cel ? p.telefone : '', Telefone: cel ? '' : p.telefone, Site: p.site, 'Google Maps': p.maps, 'Place ID': p.placeId,
+         Origem: 'Google Maps', Etapa: 'Sugerido',
+-        Observações: (p.tipo ? p.tipo + ' · ' : '') + (p.nota ? 'nota ' + p.nota + ' (' + p.avaliacoes + ' avaliações)' : '')
++        Observações: (p.tipo ? p.tipo + ' · ' : '') + (p.nota ? 'nota ' + p.nota + ' (' + p.avaliacoes + ' avaliações)' : '') + (p.preco ? ' · preço ' + p.preco : '')
+       });
+     });
+     logAtv_({ tipo: 'Sistema', texto: list.length + ' sugestão(ões) importadas do Google Maps' + (cidade ? ' · ' + cidade : '') });
