@@ -337,7 +337,7 @@ function renderSidebar(){var b=navBadges(),a=areaDe(VIEW);
   var hd=document.querySelector('header');if(hd)document.documentElement.style.setProperty('--hh',hd.offsetHeight+'px')}
 function toggleMin(){try{localStorage.setItem('morphe_side_min',localStorage.getItem('morphe_side_min')==='1'?'0':'1')}catch(e){}renderSidebar()}
 function novoMenu(e){e.stopPropagation();var m=$('novoMenu');if(m.style.display==='block'){m.style.display='none';return}
-  m.innerHTML=[['👥','Novo lead','quickAdd()'],['🛒','Novo pedido','formPedido()'],['📞','Registrar follow-up','formFollowup()'],['🤝','Novo cliente','formCliente()'],['📦','Registrar sell-out','formSellout()']].map(function(x){return '<button onclick="document.getElementById(\'novoMenu\').style.display=\'none\';'+x[2]+'">'+x[0]+' '+x[1]+'</button>'}).join('');m.style.display='block'}
+  m.innerHTML=[['👥','Novo lead','quickAdd()'],['🛒','Novo pedido','formPedido()'],['🧪','Registrar amostra','formAmostra()'],['📞','Registrar follow-up','formFollowup()'],['🤝','Novo cliente','formCliente()'],['📦','Registrar sell-out','formSellout()']].map(function(x){return '<button onclick="document.getElementById(\'novoMenu\').style.display=\'none\';'+x[2]+'">'+x[0]+' '+x[1]+'</button>'}).join('');m.style.display='block'}
 document.addEventListener('click',function(){var m=$('novoMenu');if(m)m.style.display='none'});
 
 /* ===================== Dados do Monitoramento (carregados 1x, atualizados em segundo plano) ===================== */
@@ -366,6 +366,7 @@ function tagRisco(a){var n=NIVEL[a.nivel]||['—','gray'];return '<span class="t
 function closeModal(){var m=$('mdl');if(m)m.remove()}
 function campoHTML(c){var id='mf_'+c.k,v=c.v==null?'':c.v,cls=c.full?' class="full"':'',inp;
   if(c.t==='select')inp='<select id="'+id+'">'+opts(c.opts||[],v,c.blank===undefined?'—':c.blank)+'</select>';
+  else if(c.t==='combo')inp='<input id="'+id+'" list="dl_'+c.k+'" value="'+esc(v)+'" placeholder="Escolha ou digite" autocomplete="off"><datalist id="dl_'+c.k+'">'+(c.opts||[]).map(function(x){return '<option value="'+esc(x)+'">'}).join('')+'</datalist>';
   else if(c.t==='area')inp='<textarea id="'+id+'" rows="3" placeholder="'+esc(c.ph||'')+'">'+esc(v)+'</textarea>';
   else inp='<input id="'+id+'" type="'+(c.t||'text')+'" value="'+esc(v)+'" placeholder="'+esc(c.ph||'')+'"'+(c.t==='number'?' step="any" min="0"':'')+'>';
   return '<label'+cls+'>'+esc(c.l)+inp+(c.dica?'<small class="muted" style="font-weight:400">'+esc(c.dica)+'</small>':'')+'</label>'}
@@ -383,7 +384,7 @@ function formPedido(cliente){if(!INT)return;var L=INT.listas;
     {k:'postas',l:'Postas (emb. 2 un)',t:'number'},{k:'c200',l:'Cubos 200g',t:'number'},{k:'c300',l:'Cubos 300g',t:'number'},{k:'d200',l:'Desfiado 200g',t:'number'},{k:'d300',l:'Desfiado 300g',t:'number'},
     {k:'transporte',l:'Transporte',t:'select',opts:L.transportes,blank:'—'},{k:'origem',l:'Origem do pedido',t:'select',opts:L.origens,v:'WhatsApp',blank:'—'},
     {k:'tabela',l:'Tabela de preço',t:'select',opts:L.tabelas,v:L.ultimaTabela||L.tabelas[0],blank:'—'},{k:'faixa',l:'Faixa',t:'select',opts:L.faixas,v:'Auto',blank:'',dica:'Auto escolhe pela quantidade'},{k:'valorAjustado',l:'Valor ajustado (R$) — opcional',t:'number',full:true,dica:'Só se o valor fechado for diferente do calculado'},
-    {k:'obs',l:'Observações',t:'area',full:true}],
+    {k:'frete',l:'Frete (R$) — opcional',t:'number',full:true},{k:'obs',l:'Observações',t:'area',full:true}],
     salvar:function(v,ok,fail){if(!v.cliente){toast('Escolha o cliente');return fail()}
       gravar('registrarPedido',v,'Pedido registrado',function(r){ok();var s=r.salvo;if(s)toast('Pedido registrado · '+brl(s.valorFinal)+' · margem '+(typeof s.margemPct==='number'?pcX(s.margemPct,0):s.margemPct||'—'))},fail)}})}
 
@@ -420,24 +421,14 @@ var ACOES_ADESAO={
   'Falta de divulgação':['Pedir post ou stories do local mostrando o prato','Material de ponto de venda'],
   'Item novo (ainda em teste)':['Marcar revisão em 15 dias','Combinar meta de pedidos por semana e acompanhar'],
   'Outro':['Registrar o motivo nas notas e discutir com o time']};
-function formFicha(nome){if(!INT)return;var f=null;INT.carteira.ativos.concat(INT.sell.linhas).forEach(function(x){if(x.nome===nome&&x.ficha)f=x.ficha});f=f||{};
-  formModal({titulo:'Ficha de adesão · '+nome,intro:'Olhe o cardápio, o público e o ticket do local. Isso orienta a conversa, sem sugerir produto automaticamente.',campos:[
-    {k:'cliente',l:'Cliente',t:'text',v:nome,full:true},
-    {k:'ticketCardapio',l:'Ticket médio do prato/cardápio (R$)',t:'number',v:f.ticketCardapio||''},{k:'publico',l:'Público do local',t:'text',v:f.publico||'',ph:'ex.: famílias, vegetarianos, executivos'},
-    {k:'noCardapio',l:'Item no cardápio?',t:'select',opts:['Sim','Não','Em teste'],v:f.noCardapio||'',blank:'—'},{k:'desde',l:'No cardápio desde',t:'date',v:f.desde||''},
-    {k:'posicao',l:'Posição no cardápio',t:'select',opts:PUBLICOS_POSICAO,v:f.posicao||'',blank:'—'},{k:'pedidosSemana',l:'Pedidos do item por semana',t:'number',v:f.pedidosSemana||''},
-    {k:'motivo',l:'Motivo da baixa adesão',t:'select',opts:MOTIVOS_ADESAO,v:f.motivo||'',full:true,blank:'— sem problema —'},
-    {k:'acoes',l:'Ações em andamento',t:'area',v:f.acoes||'',full:true},{k:'notas',l:'Notas',t:'area',v:f.notas||'',full:true}],
-    salvar:function(v,ok,fail){gravar('salvarFicha',v,'Ficha salva',ok,fail)}})}
-
 /* ===================== Clientes e Churn ===================== */
 var OPENC='';
 function abrirC(n){OPENC=OPENC===n?'':n;vCarteira()}
 function vCarteira(){if(!needInt(NOME.carteira))return;var C=INT.carteira,R=C.resumo;
-  var fs=F.cSit||'',lista=C.ativos.filter(function(a){return !fs||a.situacao===fs});
+  var fs=F.cSit||'',lista=C.ativos.filter(function(a){return (!fs||a.situacao===fs)&&okResp(donoCliente(a.nome))});
   var sits=['🔴 Atrasado','🟠 Sem resposta','🟡 Fazer FUP','✅ FUP feito','🟢 Em dia'];
   var h='<div class="row" style="align-items:center;margin-bottom:6px"><h2 style="margin:0">'+NOME.carteira+'</h2><span style="margin-left:auto;display:flex;gap:8px">'+recarregar()+'<button class="btn sec sm" onclick="formCliente()">+ Novo cliente</button><button class="btn sm" onclick="formPedido()">+ Novo pedido</button></span></div>';
-  h+='<div class="kpis">'+kpiX('Clientes ativos',R.nAtivos)+kpiX('Em risco (alto/crítico)',R.nRisco,'valor em risco '+brl(R.valorEmRisco),R.nRisco?'var(--verm)':'')+kpiX('Taxa de recompra',pcX(INT.painel.kpis.taxaRecompra),'clientes com 2+ pedidos')+kpiX('Amostras → clientes',R.taxaConversao==null?'—':pcX(R.taxaConversao),R.convertidos+' de '+R.amostrasTotal+(R.diasMedioConversao!=null?' · '+R.diasMedioConversao+' dias em média':''))+'</div>'+duplicadosCard(C);
+  h+=pessoaBar();h+='<div class="kpis">'+kpiX('Clientes ativos',R.nAtivos)+kpiX('Em risco (alto/crítico)',R.nRisco,'valor em risco '+brl(R.valorEmRisco),R.nRisco?'var(--verm)':'')+kpiX('Taxa de recompra',pcX(INT.painel.kpis.taxaRecompra),'clientes com 2+ pedidos')+kpiX('Amostras → clientes',R.taxaConversao==null?'—':pcX(R.taxaConversao),R.convertidos+' de '+R.amostrasTotal+(R.diasMedioConversao!=null?' · '+R.diasMedioConversao+' dias em média':''))+'</div>'+duplicadosCard(C);
   h+='<div class="filters" style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="qr-btn" style="'+(fs===''?'background:var(--creme)':'')+'" onclick="F.cSit=\'\';vCarteira()">Todas ('+C.ativos.length+')</button>'+sits.map(function(s){var n=C.ativos.filter(function(a){return a.situacao===s}).length;return n?'<button class="qr-btn" style="'+(fs===s?'background:var(--creme)':'')+'" onclick="F.cSit=\''+s+'\';vCarteira()">'+s+' ('+n+')</button>':''}).join('')+'</div>';
   h+='<div style="overflow:auto"><table><tr><th>Cliente</th><th>Situação</th><th>Risco</th><th>Último pedido</th><th>Próx. compra</th><th>Volume 90d</th><th>Ticket</th><th>Margem</th><th>Sinais</th><th></th></tr>';
   lista.forEach(function(a){var q=esc(a.nome);
@@ -450,28 +441,28 @@ function vCarteira(){if(!needInt(NOME.carteira))return;var C=INT.carteira,R=C.re
   h+='</table></div><div class="muted" style="margin:10px 2px;font-size:12px">Risco = atraso vs. ciclo (até 50) + queda de volume (até 25) + follow-ups sem resposta (até 15) + motivo de queda registrado (10). Situação segue a lógica do Calc: o FUP entra na janela "antecedência" dias antes da próxima compra. Nenhum produto é sugerido automaticamente: abra o cliente e analise.</div>';
   $('main').innerHTML=h}
 function fichaCliente(a){var m=a.mix,tot=m.postas+m.c200+m.c300+m.d200+m.d300||1,nomes=[['Posta',m.postas],['Cubos 200g',m.c200],['Cubos 300g',m.c300],['Desfiado 200g',m.d200],['Desfiado 300g',m.d300]];
-  var fups=INT.fups.filter(function(f){return f.cliente===a.nome}).slice(0,5),f=a.ficha,q=esc(a.nome);
+  var fups=INT.fups.filter(function(f){return f.cliente===a.nome}).slice(0,5),f=a.ficha,q=esc(a.nome),V=vocab(a.nome);
   var h='<div class="fgrid"><div><h3>Mix comprado</h3>'+barsX(nomes.map(function(x){return [x[0],x[1]]}),function(v){return Math.round(v/tot*100)+'%'})+'<div class="muted" style="margin-top:6px">Receita total '+brl(a.receita)+' · margem '+(a.margemPct!=null?a.margemPct+'%':'—')+' · '+a.nPedidos+' pedido(s)</div></div>';
   h+='<div><h3>Últimos pedidos</h3><div style="overflow:auto"><table style="font-size:12px"><tr><th>Data</th><th>Un</th><th>Kg</th><th>Valor</th><th>Margem</th></tr>'+(a.historico.map(function(p){return '<tr><td>'+dBR(p.data)+'</td><td>'+p.un+'</td><td>'+p.kg+'</td><td>'+brl(p.valor)+'</td><td>'+(p.margemPct!=null?Math.round(p.margemPct)+'%':'')+'</td></tr>'}).join('')||'<tr><td colspan="5">Sem pedidos</td></tr>')+'</table></div></div>';
   h+='<div><h3>Follow-ups</h3>'+(fups.map(function(x){return '<div style="font-size:12px;margin-bottom:6px"><b>'+(dBR(x.data)||'sem data')+'</b> · '+esc(x.resultado||'(sem resultado)')+(x.prox?'<div class="muted">→ '+esc(x.prox)+'</div>':'')+(x.obs?'<div class="muted">'+esc(x.obs)+'</div>':'')+'</div>'}).join('')||'<div class="muted">Nenhum registrado</div>')+'<button class="btn sm" data-n="'+q+'" onclick="formFollowup(this.dataset.n)">+ Registrar FUP</button></div>';
-  h+='<div><h3>Ficha de adesão</h3>'+(f?'<div style="font-size:12px;line-height:1.6">Ticket do cardápio: <b>'+(f.ticketCardapio?brl(f.ticketCardapio):'—')+'</b><br>Público: '+esc(f.publico||'—')+'<br>No cardápio: '+esc(f.noCardapio||'—')+(f.posicao?' · '+esc(f.posicao):'')+'<br>Pedidos do item/semana: '+(f.pedidosSemana||'—')+'<br>Motivo: <b>'+esc(f.motivo||'—')+'</b></div>'+((ACOES_ADESAO[f.motivo]||[]).map(function(x){return '<div class="tag blue" style="display:block;margin:3px 0;white-space:normal">'+esc(x)+'</div>'}).join('')):'<div class="muted">Ainda não preenchida: analise cardápio, público e ticket do local.</div>')
+  h+='<div><h3>Ficha de adesão</h3>'+(f?'<div style="font-size:12px;line-height:1.6">'+V.ticketC+': <b>'+(f.ticketCardapio?brl(f.ticketCardapio):'—')+'</b><br>Público: '+esc(f.publico||'—')+'<br>No cardápio: '+esc(f.noCardapio||'—')+(f.posicao?' · '+esc(f.posicao):'')+'<br>'+V.semanaC+': '+(f.pedidosSemana||'—')+'<br>Motivo: <b>'+esc(f.motivo||'—')+'</b></div>'+((V.acoes[f.motivo]||[]).map(function(x){return '<div class="tag blue" style="display:block;margin:3px 0;white-space:normal">'+esc(x)+'</div>'}).join('')):'<div class="muted">'+V.vazio+'</div>')
     +'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm sec" data-n="'+q+'" onclick="formFicha(this.dataset.n)">Editar ficha</button><button class="btn sm sec" data-n="'+q+'" onclick="formCliente(this.dataset.n)">Cadastro</button><button class="btn sm sec" data-n="'+q+'" onclick="formSellout(this.dataset.n)">Sell-out</button></div></div></div>';
   return h}
 
 /* ===================== Pedidos ===================== */
 function vPedidos(){if(!needInt(NOME.pedidos))return;var P=INT.pedidos,fc=F.pCli||'',ft=F.pTipo||'';
-  var lista=P.filter(function(p){return (!fc||p.cliente===fc)&&(!ft||p.tipo===ft)});
+  var lista=P.filter(function(p){return (!fc||p.cliente===fc)&&(!ft||p.tipo===ft)&&okResp(donoCliente(p.cliente))});
   var rec=lista.filter(function(p){return p.tipo==='Pedido'}).reduce(function(s,p){return s+p.valor},0),kg=lista.filter(function(p){return p.tipo==='Pedido'}).reduce(function(s,p){return s+p.kg},0);
   var h='<div class="row" style="align-items:center;margin-bottom:8px"><h2 style="margin:0">'+NOME.pedidos+'</h2><span style="margin-left:auto;display:flex;gap:8px">'+recarregar()+'<button class="btn sm" onclick="formPedido()">+ Novo pedido</button></span></div>';
-  h+='<div class="filters" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><select onchange="F.pCli=this.value;vPedidos()">'+opts(todosClientes(),fc,'Todos os clientes')+'</select><select onchange="F.pTipo=this.value;vPedidos()">'+opts(['Pedido','Amostra'],ft,'Pedidos e amostras')+'</select><span class="muted" style="align-self:center">'+lista.length+' linha(s) · receita '+brl(rec)+' · '+kg.toFixed(1).replace('.',',')+' kg (só pedidos)</span></div>';
+  h+=pessoaBar();h+='<div class="filters" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><select onchange="F.pCli=this.value;vPedidos()">'+opts(todosClientes(),fc,'Todos os clientes')+'</select><select onchange="F.pTipo=this.value;vPedidos()">'+opts(['Pedido','Amostra'],ft,'Pedidos e amostras')+'</select><span class="muted" style="align-self:center">'+lista.length+' linha(s) · receita '+brl(rec)+' · '+kg.toFixed(1).replace('.',',')+' kg (só pedidos)</span></div>';
   h+='<div style="overflow:auto"><table><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Postas</th><th>C200</th><th>C300</th><th>D200</th><th>D300</th><th>Un</th><th>Kg</th><th>Valor final</th><th>Margem</th><th>Entrega</th><th>Transporte</th><th>Origem</th></tr>'
     +lista.map(function(p){return '<tr><td>'+dBR(p.data)+'</td><td><b>'+esc(p.cliente)+'</b></td><td>'+(p.tipo==='Amostra'?'<span class="tag blue">Amostra</span>':'Pedido')+'</td><td>'+(p.postas||'')+'</td><td>'+(p.c200||'')+'</td><td>'+(p.c300||'')+'</td><td>'+(p.d200||'')+'</td><td>'+(p.d300||'')+'</td><td>'+p.un+'</td><td>'+p.kg+'</td><td>'+(p.valor?brl(p.valor):'')+'</td><td>'+(p.margemPct!=null&&p.valor?Math.round(p.margemPct)+'%':'')+'</td><td>'+dBR(p.entrega)+'</td><td>'+esc(p.transporte)+'</td><td>'+esc(p.origem)+'</td></tr>'}).join('')+'</table></div>';
   $('main').innerHTML=h}
 
 /* ===================== Follow-ups ===================== */
-function vFollowups(){if(!needInt(NOME.followups))return;var A=INT.painel.acaoImediata,fc=F.fCli||'';
+function vFollowups(){if(!needInt(NOME.followups))return;var A=INT.painel.acaoImediata.filter(function(a){return okResp(donoCliente(a.nome))}),fc=F.fCli||'';
   var h='<div class="row" style="align-items:center;margin-bottom:8px"><h2 style="margin:0">'+NOME.followups+'</h2><span style="margin-left:auto;display:flex;gap:8px">'+recarregar()+'<button class="btn sm" onclick="formFollowup()">+ Registrar follow-up</button></span></div>';
-  h+='<h3>⚡ Para fazer agora ('+A.length+')</h3>'+(A.length?'<div style="overflow:auto"><table><tr><th>Cliente</th><th>Situação</th><th>Próxima compra</th><th>Último FUP</th><th></th></tr>'+A.map(function(a){var q=esc(a.nome);return '<tr><td><b>'+q+'</b></td><td>'+tagSit(a.situacao)+'</td><td>'+(a.prox?dBR(a.prox)+(a.dias>0?' <span class="muted">(+'+a.dias+'d)</span>':''):(a.dias!=null?'há '+a.dias+' dias':''))+'</td><td>'+(a.ultimoFup?dBR(a.ultimoFup.data)+' · '+esc(a.ultimoFup.resultado):'<span class="muted">—</span>')+'</td><td><button class="btn sm" data-n="'+q+'" data-t="'+(a.tipo==='amostra'?'Amostra':'Recompra')+'" onclick="formFollowup(this.dataset.n,this.dataset.t)">Registrar FUP</button></td></tr>'}).join('')+'</table></div>':'<div class="card">Nada pendente 🎉</div>');
+  h+=pessoaBar();h+='<h3>⚡ Para fazer agora ('+A.length+')</h3>'+(A.length?'<div style="overflow:auto"><table><tr><th>Cliente</th><th>Situação</th><th>Próxima compra</th><th>Último FUP</th><th></th></tr>'+A.map(function(a){var q=esc(a.nome);return '<tr><td><b>'+q+'</b></td><td>'+tagSit(a.situacao)+'</td><td>'+(a.prox?dBR(a.prox)+(a.dias>0?' <span class="muted">(+'+a.dias+'d)</span>':''):(a.dias!=null?'há '+a.dias+' dias':''))+'</td><td>'+(a.ultimoFup?dBR(a.ultimoFup.data)+' · '+esc(a.ultimoFup.resultado):'<span class="muted">—</span>')+'</td><td><button class="btn sm" data-n="'+q+'" data-t="'+(a.tipo==='amostra'?'Amostra':'Recompra')+'" onclick="formFollowup(this.dataset.n,this.dataset.t)">Registrar FUP</button></td></tr>'}).join('')+'</table></div>':'<div class="card">Nada pendente 🎉</div>');
   var lista=INT.fups.filter(function(f){return !fc||f.cliente===fc});
   h+='<h3 style="margin-top:18px">Histórico</h3><div class="filters" style="margin-bottom:8px"><select onchange="F.fCli=this.value;vFollowups()">'+opts(todosClientes(),fc,'Todos os clientes')+'</select></div><div style="overflow:auto"><table><tr><th>Data</th><th>Cliente</th><th>Canal</th><th>Resultado</th><th>Tipo</th><th>Próximo passo</th><th>Observações</th></tr>'
     +lista.map(function(f){return '<tr><td>'+dBR(f.data)+'</td><td><b>'+esc(f.cliente)+'</b></td><td>'+esc(f.canal)+'</td><td>'+esc(f.resultado)+'</td><td>'+esc(f.tipo)+'</td><td>'+esc(f.prox)+'</td><td>'+esc(f.obs)+'</td></tr>'}).join('')+'</table></div>';
@@ -480,23 +471,15 @@ function vFollowups(){if(!needInt(NOME.followups))return;var A=INT.painel.acaoIm
 /* ===================== Amostras (prospecção -> cliente) ===================== */
 function marcarEntrega(n){var hoje=hojeIso();formModal({titulo:'Marcar entrega da amostra · '+n,ok:'Salvar entrega',campos:[{k:'entrega',l:'Data da entrega',t:'date',v:hoje}],
   salvar:function(v,ok,fail){gravar('registrarEntregaAmostra',{cliente:n,entrega:v.entrega},'Entrega registrada',ok,fail)}})}
-function vAmostras(){if(!needInt(NOME.amostras))return;var C=INT.carteira,R=C.resumo;
-  var h='<div class="row" style="align-items:center;margin-bottom:8px"><h2 style="margin:0">'+NOME.amostras+'</h2><span style="margin-left:auto">'+recarregar()+'</span></div>';
-  h+='<div class="kpis">'+kpiX('Amostras enviadas',R.amostrasTotal,'prospects que receberam')+kpiX('Viraram cliente',R.convertidos,R.taxaConversao==null?'':pcX(R.taxaConversao)+' de conversão')+kpiX('Tempo médio p/ converter',R.diasMedioConversao==null?'—':R.diasMedioConversao+' dias')+kpiX('Sem resposta há 7+ dias',R.prospectsSem7d,'hora de fazer FUP',R.prospectsSem7d?'var(--laranja)':'')+'</div>';
-  h+='<div class="muted" style="margin-bottom:8px">A amostra nasce sozinha quando o lead vai para "Amostra enviada" no funil (data do pedido) e a entrega é marcada ao concluir a tarefa de amostra. Prospect não é cliente: só vira Ativo no primeiro pedido.</div>';
-  h+=C.prospects.length?'<div style="overflow:auto"><table><tr><th>Prospect</th><th>Cidade</th><th>Pedido da amostra</th><th>Entrega</th><th>Dias p/ entregar</th><th>Dias desde</th><th>Status</th><th>Último FUP</th><th></th></tr>'+C.prospects.map(function(p){var q=esc(p.nome),cor=p.status==='sem resposta 7d+'?'red':(p.status==='respondeu'?'':'yel');
-    return '<tr><td><b>'+q+'</b></td><td>'+esc(p.cidade)+'</td><td>'+dBR(p.pedidoAmostra)+'</td><td>'+(p.entrega?dBR(p.entrega):'<span class="muted">pendente</span>')+'</td><td>'+(p.diasParaEntregar!=null?p.diasParaEntregar:'')+'</td><td>'+(p.diasDesde!=null?p.diasDesde:'')+'</td><td><span class="tag '+cor+'">'+esc(p.status)+'</span></td><td>'+esc(p.ultimoFup||'')+'</td><td style="white-space:nowrap">'+(!p.entrega&&p.pedidoAmostra?'<button class="btn sm sec" data-n="'+q+'" onclick="marcarEntrega(this.dataset.n)">Marcar entrega</button> ':'')+'<button class="btn sm" data-n="'+q+'" onclick="formFollowup(this.dataset.n,\'Amostra\')">FUP</button> <button class="btn sm sec" data-n="'+q+'" onclick="formPedido(this.dataset.n)">1º pedido</button></td></tr>'}).join('')+'</table></div>':'<div class="card">Nenhuma amostra em andamento.</div>';
-  $('main').innerHTML=h}
-
 /* ===================== Sell-in / Sell-out ===================== */
 var ALERTA={'baixa-adesao':['Baixa adesão','red'],'repor':['Hora de repor','yel'],'sem-dado':['Sem dado de sell-out','gray'],'ok':['Ok','']};
-function vSellin(){if(!needInt(NOME.sellin))return;var S=INT.sell,R=S.resumo;
+function vSellin(){if(!needInt(NOME.sellin))return;var S=INT.sell,R=S.resumo;S={linhas:S.linhas.filter(function(l){return okResp(donoCliente(l.nome))}),resumo:S.resumo};
   var h='<div class="row" style="align-items:center;margin-bottom:8px"><h2 style="margin:0">'+NOME.sellin+'</h2><span style="margin-left:auto;display:flex;gap:8px">'+recarregar()+'<button class="btn sm" onclick="formSellout()">+ Registrar sell-out</button></span></div>';
-  h+='<div class="kpis">'+kpiX('Baixa adesão',R.baixaAdesao,'vendem menos de 40% do que compraram',R.baixaAdesao?'var(--verm)':'')+kpiX('Hora de repor',R.repor,'cobertura abaixo de 1,5 semana',R.repor?'var(--laranja)':'')+kpiX('Sem dado de sell-out',R.semDado,'registre o giro para analisar')+'</div>';
-  h+='<div class="muted" style="margin-bottom:8px">Sell-in = o que a Morphê vendeu ao ponto de venda. Sell-out = o que ele vendeu ao consumidor (você registra, é rápido). Estoque estimado = sell-in 90d − sell-out 90d (estimativa). "Colocou no cardápio e ninguém pediu" aparece como baixa adesão: abra a ficha para entender o porquê.</div>';
+  h+=pessoaBar();h+='<div class="kpis">'+kpiX('Baixa adesão',R.baixaAdesao,'vendem menos de 40% do que compraram',R.baixaAdesao?'var(--verm)':'')+kpiX('Hora de repor',R.repor,'cobertura abaixo de 1,5 semana',R.repor?'var(--laranja)':'')+kpiX('Sem dado de sell-out',R.semDado,'registre o giro para analisar')+'</div>';
+  h+='<div class="muted" style="margin-bottom:8px">Sell-in = o que a Morphê vendeu ao ponto de venda. Sell-out = o que ele vendeu ao consumidor (você registra, é rápido). Estoque estimado = sell-in 90d − sell-out 90d (estimativa). Quando o produto está à venda e quase não gira, aparece como baixa adesão: abra a ficha para entender o porquê.</div>';
   h+='<div style="overflow:auto"><table><tr><th>Cliente</th><th>Sell-in 30/60/90d</th><th>Sell-out 30/60/90d</th><th>Giro (90d)</th><th>Estoque est.</th><th>Cobertura</th><th>Situação</th><th></th></tr>'+S.linhas.map(function(l){var q=esc(l.nome),a=ALERTA[l.alerta];
     return '<tr><td><b>'+q+'</b><div class="muted">último pedido '+(dBR(l.ultimoPedido)||'—')+'</div></td><td>'+l.sellIn.d30+' / '+l.sellIn.d60+' / '+l.sellIn.d90+'</td><td>'+(l.alerta==='sem-dado'?'<span class="muted">—</span>':l.sellOut.d30+' / '+l.sellOut.d60+' / '+l.sellOut.d90)+'</td><td>'+(l.giro==null?'—':'<div class="bar" style="width:'+Math.min(100,Math.round(l.giro*100))+'px;min-width:6px;background:'+(l.giro<0.4?'var(--verm)':'var(--verde2)')+'"></div>'+Math.round(l.giro*100)+'%')+'</td><td>'+(l.alerta==='sem-dado'?'—':l.estoque+' un')+'</td><td>'+(l.coberturaSemanas==null?'—':l.coberturaSemanas+' sem')+'</td><td><span class="tag '+a[1]+'">'+a[0]+'</span>'+(l.ficha&&l.ficha.motivo?'<div class="muted">'+esc(l.ficha.motivo)+'</div>':'')+'</td>'
-      +'<td style="white-space:nowrap"><button class="btn sm" data-n="'+q+'" onclick="formSellout(this.dataset.n)">Sell-out</button> <button class="btn sm sec" data-n="'+q+'" onclick="formFicha(this.dataset.n)">Ficha</button></td></tr>'+(l.ficha&&l.ficha.motivo&&ACOES_ADESAO[l.ficha.motivo]?'<tr><td colspan="8" style="background:#FBF7EE;font-size:12px">'+ACOES_ADESAO[l.ficha.motivo].map(function(x){return '• '+esc(x)}).join('&nbsp;&nbsp;')+'</td></tr>':'')}).join('')+'</table></div>';
+      +'<td style="white-space:nowrap"><button class="btn sm" data-n="'+q+'" onclick="formSellout(this.dataset.n)">Sell-out</button> <button class="btn sm sec" data-n="'+q+'" onclick="formFicha(this.dataset.n)">Ficha</button></td></tr>'+(l.ficha&&l.ficha.motivo&&vocab(l.nome).acoes[l.ficha.motivo]?'<tr><td colspan="8" style="background:#FBF7EE;font-size:12px">'+vocab(l.nome).acoes[l.ficha.motivo].map(function(x){return '• '+esc(x)}).join('&nbsp;&nbsp;')+'</td></tr>':'')}).join('')+'</table></div>';
   $('main').innerHTML=h}
 
 /* ===================== Painel geral (substitui Painel + Dashboard da planilha) ===================== */
@@ -562,19 +545,6 @@ function scoreSugerido(l,T){var s=0,why=[],ob=obsLead(l);
   if(T.seg[l.Segmento]){s+=15;why.push('segmento igual ao dos clientes')}
   return {s:Math.round(s),why:why}}
 function pesoPDV(l){var ob=obsLead(l),f={0:1,1:1,2:1.3,3:1.6,4:2}[ob.preco]||1;return (1+Math.log10(1+ob.aval))*f}
-function vIcp(){var T=icpTracos(),h='<div class="row" style="align-items:center;margin-bottom:8px"><h2 style="margin:0">'+NOME.icp+'</h2><span style="margin-left:auto">'+(INT?recarregar():'')+'</span></div>';
-  h+='<div class="card" style="margin-bottom:12px"><h3>Perfil dos clientes atuais (base do ICP)</h3>'+(T.n?'<div class="row" style="gap:24px"><div>Clientes ganhos no CRM: <b>'+T.n+'</b><br>Potencial médio: <b>'+brl(T.pot)+'/mês</b></div><div style="flex:1;min-width:220px"><div class="muted">Segmentos</div>'+barsX(Object.keys(T.seg).map(function(k){return [k,T.seg[k]]}),function(v){return v})+'</div><div style="flex:1;min-width:220px"><div class="muted">Cidades</div>'+barsX(Object.keys(T.cid).map(function(k){return [k,T.cid[k]]}),function(v){return v},'var(--azul)')+'</div></div>':'<div class="muted">Ainda não há leads em "Ganho" no CRM.</div>')+'<div class="muted" style="margin-top:8px">Foco: restaurantes de ticket médio alto, porque o produto é premium e precisa de um cardápio que sustente o valor do prato e eleve o ticket.</div></div>';
-  var fila=D.leads.filter(function(l){return ativo(l)&&l.Etapa!=='Sugerido'}).map(function(l){var r=scoreLead(l,T);return {l:l,s:r.s,why:r.why}}).sort(function(a,b){return b.s-a.s}).slice(0,12);
-  h+='<h3>🎯 Falar hoje com estes ('+fila.length+')</h3>'+(fila.length?'<div style="overflow:auto"><table><tr><th>Lead</th><th>Etapa</th><th>Responsável</th><th>Por que agora</th><th>Score</th><th></th></tr>'+fila.map(function(x){return '<tr class="click" onclick="openLead(\''+x.l.ID+'\')"><td><b>'+esc(x.l.Estabelecimento)+'</b><div class="muted">'+esc(x.l.Cidade||'')+'</div></td><td>'+esc(x.l.Etapa)+'</td><td>'+esc(x.l['Responsável']||'—')+'</td><td>'+(x.why.map(function(w){return '<span class="tag gray" style="margin:1px">'+esc(w)+'</span>'}).join('')||'<span class="muted">—</span>')+'</td><td><b>'+x.s+'</b></td><td><button class="btn sm sec">Abrir</button></td></tr>'}).join('')+'</table></div>':'<div class="card">Nenhum lead ativo.</div>');
-  var sug=D.leads.filter(function(l){return l.Etapa==='Sugerido'}).map(function(l){var r=scoreSugerido(l,T);return {l:l,s:r.s,why:r.why}}).sort(function(a,b){return b.s-a.s}).slice(0,12),temPreco=D.leads.some(function(l){return obsLead(l).preco>0});
-  h+='<h3 style="margin-top:18px">💎 Prospectar primeiro (ticket alto entre os Sugeridos)</h3>'+(temPreco?'':'<div class="tag yel" style="display:block;white-space:normal;margin-bottom:8px">O nível de preço do restaurante passa a ser coletado nas próximas buscas no Maps. Por enquanto a ordem usa nota, avaliações e segmento.</div>')
-    +(sug.length?'<div style="overflow:auto"><table><tr><th>Lead</th><th>Cidade</th><th>Sinais</th><th>Score</th></tr>'+sug.map(function(x){return '<tr class="click" onclick="openLead(\''+x.l.ID+'\')"><td><b>'+esc(x.l.Estabelecimento)+'</b></td><td>'+esc(x.l.Cidade||'')+'</td><td>'+(x.why.map(function(w){return '<span class="tag gray" style="margin:1px">'+esc(w)+'</span>'}).join('')||'<span class="muted">—</span>')+'</td><td><b>'+x.s+'</b></td></tr>'}).join('')+'</table></div>':'<div class="card">Nenhum lead sugerido.</div>');
-  var map=D.leads.filter(function(l){return l['Place ID']||l.Etapa==='Ganho'}),cid={};
-  map.forEach(function(l){var c=l.Cidade||'(sem cidade)',o=cid[c]=cid[c]||{n:0,g:0,w:0,wg:0};var w=pesoPDV(l);o.n++;o.w+=w;if(l.Etapa==='Ganho'){o.g++;o.wg+=w}});
-  h+='<h3 style="margin-top:18px">Distribuição por cidade (numérica vs. ponderada pela importância do ponto)</h3><div style="overflow:auto"><table><tr><th>Cidade</th><th>PDVs mapeados</th><th>Clientes</th><th>Distribuição numérica</th><th>Distribuição ponderada</th></tr>'+Object.keys(cid).sort(function(a,b){return cid[b].n-cid[a].n}).map(function(k){var o=cid[k];return '<tr><td><b>'+esc(k)+'</b></td><td>'+o.n+'</td><td>'+o.g+'</td><td>'+pcX(o.g/o.n,1)+'</td><td>'+pcX(o.w?o.wg/o.w:0,1)+'</td></tr>'}).join('')+'</table></div><div class="muted" style="margin:6px 2px;font-size:12px">Peso do ponto = avaliações no Maps (log) × fator de ticket ($ = 1, $$ = 1,3, $$$ = 1,6, $$$$ = 2). É um proxy da importância do ponto na categoria: quando houver dado de mercado melhor, troque o peso.</div>';
-  var tk=INT?INT.previsao.ticketMensalPorCliente:0,aderentes=D.leads.filter(function(l){var o=obsLead(l);return l.Etapa!=='Perdido'&&(o.preco>=3||T.seg[l.Segmento])}).length;
-  h+='<h3 style="margin-top:18px">Tamanho de mercado (de baixo para cima, preliminar)</h3><div style="overflow:auto"><table><tr><th></th><th>PDVs</th><th>Ticket mensal por cliente</th><th>Mercado mensal</th></tr><tr><td><b>TAM</b> · tudo que já foi mapeado</td><td>'+map.length+'</td><td>'+brl(tk)+'</td><td>'+brl(map.length*tk)+'</td></tr><tr><td><b>SAM</b> · ticket alto ou segmento igual ao dos clientes</td><td>'+aderentes+'</td><td>'+brl(tk)+'</td><td>'+brl(aderentes*tk)+'</td></tr><tr><td><b>SOM</b> · clientes ativos hoje</td><td>'+(INT?INT.carteira.resumo.nAtivos:'—')+'</td><td>'+brl(tk)+'</td><td>'+brl((INT?INT.carteira.resumo.nAtivos:0)*tk)+'</td></tr></table></div><div class="muted" style="margin:6px 2px;font-size:12px">Considera só o que já está no CRM (não é o mercado inteiro). Ticket mensal = média real dos pedidos. Cresce conforme mais buscas forem feitas.</div>';
-  $('main').innerHTML=h;if(!INT)intLoad()}
 
 function renderNav(){renderNav0();metaChip()}
 
@@ -790,8 +760,119 @@ function vMural(){var f=window._mf||'tudo',pe=window._mp||'';
   $('main').innerHTML=h}
 function mtxtAdd(t){var el=$('mtxt');el.value=(el.value?el.value+' ':'')+t;el.focus()}
 
+/* ===================== Utilidades: nomes, cidades, dono ===================== */
+function nrmJs(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'')}
+var MIN_CID={de:1,da:1,do:1,das:1,dos:1,e:1};
+function cidadeCanon(c){var t=String(c||'').replace(/\(.*?\)/g,' ').replace(/\s+/g,' ').trim();if(!t)return '';
+  var uf='',m=t.match(/[\/,\-]\s*([A-Za-z]{2})\s*$/);if(m){uf=m[1].toUpperCase();t=t.slice(0,m.index)}
+  t=t.replace(/[\/,]+\s*[A-Za-z]{2}\s*$/,'').replace(/[,\/\-]+\s*$/,'').trim();if(!t)return '';
+  var nome=t.toLowerCase().split(' ').map(function(w,i){return (i>0&&MIN_CID[w])?w:w.charAt(0).toUpperCase()+w.slice(1)}).join(' ');
+  if(!uf&&/^s[aã]o paulo$/i.test(nome))uf='SP';return nome+(uf?'/'+uf:'')}
+function cidadeBase(c){return nrmJs(String(c||'').replace(/\/[A-Za-z]{2}$/,''))}
+/* junta "Campinas" e "Campinas/SP" no mesmo grupo, exibindo a versão com UF */
+function cidadeMapa(lista){var best={};lista.forEach(function(c){var cc=cidadeCanon(c);if(!cc)return;var k=cidadeBase(cc);if(!best[k]||(cc.indexOf('/')>0&&best[k].indexOf('/')<0))best[k]=cc});
+  return function(c){var cc=cidadeCanon(c);return cc?(best[cidadeBase(cc)]||cc):''}}
+function leadDe(nome){var k=nrmJs(nome);return D.leads.filter(function(l){return nrmJs(l.Estabelecimento)===k})[0]||null}
+function donoCliente(nome){var l=leadDe(nome);if(l&&l['Responsável'])return l['Responsável'];
+  var c=INT&&INT.clientes.filter(function(x){return nrmJs(x.nome)===nrmJs(nome)})[0],m=c&&String(c.obs||'').match(/resp\.?\s*:\s*([A-Za-zÀ-ú]+)/i);return m?m[1]:''}
+function okResp(dono){if(!F.resp)return true;if(F.resp==='__sem')return !dono;return dono===F.resp}
+function pessoaBar(){var ps=[['','Todos']].concat(D.users.map(function(u){return [u.nome,u.nome]})).concat([['__sem','Sem dono']]);
+  return '<div class="seg2" style="display:inline-flex;margin-bottom:14px;flex-wrap:wrap">'+ps.map(function(p){return '<button class="'+((F.resp||'')===p[0]?'on':'')+'" data-p="'+esc(p[0])+'" onclick="F.resp=this.dataset.p;render()">'+(p[0]&&p[0]!=='__sem'&&p[0]===ME?'👤 Eu':esc(p[1]))+'</button>'}).join('')+'</div>'}
+function amostrasEntregues(){var s={};if(INT)INT.carteira.amostras.forEach(function(a){if(a.entregue)s[nrmJs(a.cliente)]=1});return s}
+function amostrasEnt(L){var s=amostrasEntregues();return L.filter(function(l){return s[nrmJs(l.Estabelecimento)]}).length}
+
+/* ===================== Vocabulário: restaurante x varejo (empório) ===================== */
+function ehVarejo(nome){var l=leadDe(nome),seg=l?String(l.Segmento||''):'';if(/emp[oó]rio|loja|mercado|hortifruti/i.test(seg))return true;if(seg)return false;return /emp[oó]rio|mercadinho|mercado|hortifruti|loja/i.test(nome)}
+var ACOES_REST=ACOES_ADESAO;
+var VOC_REST={tipo:'restaurante',ticket:'Ticket médio do prato/cardápio (R$)',ticketC:'Ticket do cardápio',publico:'Público do local',item:'Item no cardápio?',itemC:'No cardápio',desde:'No cardápio desde',posicao:'Posição no cardápio',semana:'Pedidos do item por semana',semanaC:'Pedidos do item/semana',
+  posOpts:PUBLICOS_POSICAO,motivos:MOTIVOS_ADESAO,acoes:ACOES_REST,intro:'Olhe o cardápio, o público e o ticket do local. Isso orienta a conversa, sem sugerir produto automaticamente.',vazio:'Ainda não preenchida: analise cardápio, público e ticket do local.',
+  sellTxt:'Quando o item está no cardápio e ninguém pede, aparece como baixa adesão: abra a ficha para entender o porquê.'};
+var VOC_VAREJO={tipo:'varejo',ticket:'Ticket médio por compra na loja (R$)',ticketC:'Ticket da loja',publico:'Perfil do cliente da loja',item:'Produto exposto na vitrine/gôndola?',itemC:'Na vitrine/gôndola',desde:'Na loja desde',posicao:'Posição na gôndola/vitrine',semana:'Unidades vendidas por semana',semanaC:'Unidades vendidas/semana',
+  posOpts:['Ponta de gôndola / destaque','Altura dos olhos','Prateleira baixa','Freezer / ilha de congelados','Vitrine do caixa','Não está exposto'],
+  motivos:['Sem destaque na gôndola/vitrine','Equipe da loja não indica','Embalagem/rótulo não chama atenção','Preço percebido alto na gôndola','Falta de degustação no ponto de venda','Freezer pouco visível','Item novo (ainda em teste)','Outro'],
+  acoes:{'Sem destaque na gôndola/vitrine':['Pedir ponta de gôndola ou espaço na vitrine','Material de ponto de venda (wobbler, display)'],'Equipe da loja não indica':['Degustação para a equipe da loja','Combinar uma frase de indicação com o balconista'],
+    'Embalagem/rótulo não chama atenção':['Colocar foto do prato pronto junto do produto','Garantir a face frontal da embalagem voltada para o cliente'],'Preço percebido alto na gôndola':['Rever preço de gôndola e margem com o lojista','Mostrar rendimento e porções no ponto de venda'],
+    'Falta de degustação no ponto de venda':['Planejar degustação no ponto de venda','Enviar amostras para o lojista oferecer'],'Freezer pouco visível':['Reposicionar o freezer ou usar adesivo de destaque'],'Item novo (ainda em teste)':['Marcar revisão em 15 dias','Combinar meta de unidades vendidas por semana'],'Outro':['Registrar o motivo nas notas e discutir com o time']},
+  intro:'Olhe a vitrine/gôndola, o perfil de quem compra e as unidades vendidas. Isso orienta a conversa com o lojista.',vazio:'Ainda não preenchida: analise vitrine/gôndola, perfil do cliente e unidades vendidas.',
+  sellTxt:'Quando o produto está exposto e não gira (poucas unidades vendidas), aparece como baixa adesão: abra a ficha para entender o porquê.'};
+function vocab(nome){return ehVarejo(nome)?VOC_VAREJO:VOC_REST}
+function formFicha(nome){if(!INT)return;var f=null,V=vocab(nome);INT.carteira.ativos.concat(INT.sell.linhas).forEach(function(x){if(x.nome===nome&&x.ficha)f=x.ficha});f=f||{};
+  formModal({titulo:'Ficha de adesão · '+nome,intro:V.intro,campos:[
+    {k:'cliente',l:'Cliente',t:'text',v:nome,full:true},
+    {k:'ticketCardapio',l:V.ticket,t:'number',v:f.ticketCardapio||''},{k:'publico',l:V.publico,t:'text',v:f.publico||'',ph:V.tipo==='varejo'?'ex.: famílias, atletas, vegetarianos':'ex.: famílias, vegetarianos, executivos'},
+    {k:'noCardapio',l:V.item,t:'select',opts:['Sim','Não','Em teste'],v:f.noCardapio||'',blank:'—'},{k:'desde',l:V.desde,t:'date',v:f.desde||''},
+    {k:'posicao',l:V.posicao,t:'select',opts:V.posOpts,v:f.posicao||'',blank:'—'},{k:'pedidosSemana',l:V.semana,t:'number',v:f.pedidosSemana||''},
+    {k:'motivo',l:'Motivo da baixa adesão',t:'select',opts:V.motivos,v:f.motivo||'',full:true,blank:'— sem problema —'},
+    {k:'acoes',l:'Ações em andamento',t:'area',v:f.acoes||'',full:true},{k:'notas',l:'Notas',t:'area',v:f.notas||'',full:true}],
+    salvar:function(v,ok,fail){gravar('salvarFicha',v,'Ficha salva',ok,fail)}})}
+
+/* ===================== Registrar amostra ===================== */
+function formAmostra(cliente){if(!INT)return;var L=INT.listas;
+  formModal({titulo:'Registrar envio de amostra',ok:'Registrar amostra',intro:'Prospect não vira cliente: só no primeiro pedido. Os SKUs alimentam o custo da amostra, e a data de entrega alimenta a conversão.',campos:[
+    {k:'cliente',l:'Cliente (escolha da lista ou digite um novo)',t:'combo',opts:todosClientes(),v:cliente||'',full:true},
+    {k:'cidade',l:'Cidade (se for novo)',t:'text',ph:'ex.: São Paulo/SP'},{k:'origem',l:'Origem',t:'select',opts:L.origens.length?L.origens:['Prospecção direta','Parceira estratégica'],v:'Prospecção direta',blank:'—'},
+    {k:'data',l:'Data do pedido da amostra',t:'date',v:hojeIso()},{k:'entrega',l:'Data da entrega (deixe vazio se ainda não entregue)',t:'date'},
+    {k:'postas',l:'Postas (emb. 2 un)',t:'number'},{k:'c200',l:'Cubos 200g',t:'number'},{k:'c300',l:'Cubos 300g',t:'number'},{k:'d200',l:'Desfiado 200g',t:'number'},{k:'d300',l:'Desfiado 300g',t:'number'},
+    {k:'frete',l:'Frete (R$) — opcional',t:'number'},{k:'obs',l:'Observações',t:'area',full:true}],
+    salvar:function(v,ok,fail){if(!v.cliente){toast('Escolha ou digite o cliente');return fail()}
+      gravar('registrarAmostra',v,'Amostra registrada',function(r){ok();if(r.salvo&&r.salvo.custo)toast('Amostra registrada · custo '+brl(r.salvo.custo))},fail)}})}
+
+/* ===================== Amostras (sampling) ===================== */
+function vAmostras(){if(!needInt(NOME.amostras))return;var C=INT.carteira,R=C.resumo,fcl=F.aCli||'';
+  var lista=C.amostras.filter(function(a){return okResp(donoCliente(a.cliente))}),ent=lista.filter(function(a){return a.entregue}),pend=lista.length-ent.length,cust=lista.reduce(function(s,a){return s+a.custo},0);
+  var clientesEnt={},conv={};ent.forEach(function(a){clientesEnt[nrmJs(a.cliente)]=1;if(a.converteu)conv[nrmJs(a.cliente)]=a.diasConv});
+  var nEnt=Object.keys(clientesEnt).length,nConv=Object.keys(conv).length,dias=Object.keys(conv).map(function(k){return conv[k]}),dmed=dias.length?Math.round(dias.reduce(function(s,x){return s+x},0)/dias.length):null;
+  var h='<div class="ph"><div><h2>'+NOME.amostras+'</h2><div class="muted">Só conta como enviada a amostra com entrega confirmada</div></div><span style="display:flex;gap:8px">'+recarregar()+'<button class="btn lar sm" onclick="formAmostra()">+ Registrar amostra</button></span></div>'+pessoaBar();
+  h+='<div class="kpis">'+kpiX('Amostras enviadas',nEnt,'prospects com entrega confirmada')+kpiX('Aguardando entrega',pend,'pedidos de amostra sem entrega','', pend?'ambar':'azul')+kpiX('Viraram cliente',nConv,nEnt?pcX(nConv/nEnt)+' de conversão':'','', 'lima')+kpiX('Tempo médio p/ converter',dmed==null?'—':dmed+' dias','da entrega ao 1º pedido','', 'azul')+kpiX('Custo com amostras',brl(cust),nConv?brl(cust/nConv)+' por cliente convertido':'sem conversões ainda','', 'roxo')+'</div>';
+  h+='<div class="card" style="margin-top:16px"><div class="ch"><div><h3>Cada amostra enviada</h3><div class="sub">SKU, custo e conversão por envio</div></div></div>'+(lista.length?'<div style="overflow:auto"><table class="mini"><tr><th>Cliente</th><th>Pedido</th><th>Entrega</th><th>SKUs enviados</th><th>Custo</th><th>Frete</th><th>Status</th><th></th></tr>'
+    +lista.map(function(a){var q=esc(a.cliente),st=a.converteu?'<span class="tag" style="background:#ABD032;color:#054A37">Virou cliente'+(a.diasConv!=null?' · '+a.diasConv+'d':'')+'</span>':(a.entregue?'<span class="tag blue">Entregue · aguardando retorno</span>':'<span class="tag yel">Aguardando entrega</span>');
+      return '<tr><td><b>'+q+'</b></td><td>'+dBR(a.data)+'</td><td>'+(a.entrega?dBR(a.entrega):'<span class="muted">pendente</span>')+'</td><td>'+(esc(a.skus)||'<span class="muted">sem SKU informado</span>')+'</td><td>'+(a.custo?brl(a.custo):'—')+'</td><td>'+(a.frete?brl(a.frete):'—')+'</td><td>'+st+'</td><td style="white-space:nowrap">'+(!a.entregue?'<button class="btn sm sec" data-n="'+q+'" onclick="marcarEntrega(this.dataset.n)">Marcar entrega</button> ':'')+'<button class="btn sm" data-n="'+q+'" onclick="formFollowup(this.dataset.n,\'Amostra\')">FUP</button> '+(a.converteu?'':'<button class="btn sm sec" data-n="'+q+'" onclick="formPedido(this.dataset.n)">1º pedido</button>')+'</td></tr>'}).join('')+'</table></div>':'<div class="muted">Nenhuma amostra para este filtro.</div>')+'</div>';
+  h+='<div class="muted" style="margin:10px 2px;font-size:12px">Prospect não é cliente: só vira Ativo no primeiro pedido. O custo vem da tabela de custos da planilha, pelos SKUs informados.</div>';
+  $('main').innerHTML=h}
+
+/* ===================== Dashboard de pipeline: pessoal, com Todos, sem a seção de troca de canal ===================== */
+function vDash(){var all=D.leads,allA=D.atividades,mapa=cidadeMapa(all.map(function(l){return l.Cidade}));
+  var ls=all.map(function(l){return Object.assign({},l,{Cidade:mapa(l.Cidade)})}).filter(function(l){return okResp(l['Responsável'])}),ids={};ls.forEach(function(l){ids[l.ID]=1});
+  D.leads=ls;D.atividades=allA.filter(function(a){return !a['Lead ID']||ids[a['Lead ID']]});
+  try{vDashBase()}finally{D.leads=all;D.atividades=allA}
+  $('main').insertAdjacentHTML('afterbegin',pessoaBar())}
+
+/* ===================== Prospecção e ICP (pessoal) + mercado ===================== */
+var MERCADO={tam:{v:60000,min:12500,l:'Restaurantes de salão e fornecimento de refeições na cidade de SP',f:'CNPJs ativos (LeadJet / Receita Federal), 2026; mínimo de 12.500 restaurantes pelo SinHoRes'},
+  sam:{v:2953,l:'Restaurantes veganos ou veg-friendly no Brasil',f:'Veganuary + HappyCow, 2024-25'},ref:{brl:1.12e9,ton:16000,f:'GFI Brasil: varejo plant-based R$ 1,12 bi (2024); substitutos de carne e pescado, mais de 16 mil toneladas (2025)'}};
+function convPorOrigem(){var idx={};ETAPAS_F.forEach(function(e,i){idx[e]=i});var tr=transicoes(),R={},orig={};
+  D.leads.forEach(function(l){var o=l.Origem==='Pesquisa Claude'?'Lista pesquisada':(l.Origem||'(sem origem)');orig[l.ID]=o;R[o]=R[o]||{leads:0,e:{}};R[o].leads++;ETAPAS_F.forEach(function(e){R[o].e[e]=R[o].e[e]||{}});
+    if(l.Etapa in idx)for(var i=0;i<=idx[l.Etapa];i++)R[o].e[ETAPAS_F[i]][l.ID]=1});
+  tr.forEach(function(t){var o=orig[t.lead];if(!o||!(t.para in idx))return;for(var i=0;i<=idx[t.para];i++)R[o].e[ETAPAS_F[i]][t.lead]=1});
+  return Object.keys(R).map(function(o){var r=R[o],n=function(e){return Object.keys(r.e[e]).length};return {o:o,leads:r.leads,contato:n('Contato feito'),resp:n('Respondeu'),am:n('Amostra enviada'),neg:n('Negociação'),cli:n('Ganho'),conv:r.leads?n('Ganho')/r.leads:0}}).sort(function(a,b){return b.leads-a.leads})}
+function mercadoCard(){var M=MERCADO,tk=INT?INT.previsao.ticketMensalPorCliente:0,m=INT&&INT.meta,kgCli=m?m.kgMesPorCliente:0,need=m?m.clientesNecessarios:null,CO=convPorOrigem(),
+    cd=CO.filter(function(x){return /prospec/i.test(x.o)})[0],ci=CO.filter(function(x){return /inbound/i.test(x.o)})[0],convD=cd&&cd.leads?cd.conv:0,convI=ci&&ci.leads?ci.conv:0,ganhos=D.leads.filter(function(l){return l.Etapa==='Ganho'}).length,convG=D.leads.length?ganhos/D.leads.length:0;
+  var som=Math.round(M.sam.v*convG),leadsD=need&&convD?Math.ceil(need/convD):null,leadsI=need&&convI?Math.ceil(need/convI):null,trs=M.ref.ton;
+  var h='<h3 style="margin-top:22px">Tamanho de mercado</h3><div class="card"><div style="overflow:auto"><table class="mini"><tr><th></th><th>Estabelecimentos</th><th>Ticket mensal por cliente</th><th>Mercado mensal</th><th>Fonte</th></tr>'
+    +'<tr><td><b>TAM</b> · '+esc(M.tam.l)+'</td><td>'+M.tam.v.toLocaleString('pt-BR')+' <span class="muted">(mín. '+M.tam.min.toLocaleString('pt-BR')+')</span></td><td>'+brl(tk)+'</td><td>'+brl(M.tam.v*tk)+'</td><td class="muted" style="white-space:normal;max-width:300px">'+esc(M.tam.f)+'</td></tr>'
+    +'<tr><td><b>SAM</b> · '+esc(M.sam.l)+'</td><td>'+M.sam.v.toLocaleString('pt-BR')+'</td><td>'+brl(tk)+'</td><td>'+brl(M.sam.v*tk)+'</td><td class="muted" style="white-space:normal;max-width:300px">'+esc(M.sam.f)+'</td></tr>'
+    +'<tr><td><b>SOM</b> · SAM × conversão real do funil ('+pcX(convG,1)+')</td><td>'+som.toLocaleString('pt-BR')+'</td><td>'+brl(tk)+'</td><td>'+brl(som*tk)+'</td><td class="muted" style="white-space:normal;max-width:300px">Seu CRM: '+ganhos+' clientes em '+D.leads.length+' leads</td></tr></table></div>'
+    +(m?'<div class="g g12" style="margin-top:14px"><div class="stat"><span>Meta '+m.metaKg+' kg/'+PER_NOME[m.periodo]+' como parte do mercado</span><b>'+pcX(need?need/M.sam.v:0,2)+' do SAM</b><small>'+(need||'—')+' clientes de '+M.sam.v.toLocaleString('pt-BR')+'</small></div><div class="stat"><span>Meta anual ('+(m.metaKg*(m.periodo==='mensal'?12:m.periodo==='trimestral'?4:1)/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' t) no volume nacional plant-based</span><b>'+pcX(m.metaKg*(m.periodo==='mensal'?12:m.periodo==='trimestral'?4:1)/1000/trs,2)+'</b><small>de '+trs.toLocaleString('pt-BR')+' t/ano · '+esc(M.ref.f)+'</small></div></div>':'')
+    +'<div class="g g12" style="margin-top:12px"><div class="stat"><span>Leads a trabalhar para fechar os '+(need||'—')+' clientes só com prospecção direta ('+pcX(convD,1)+')</span><b>'+(leadsD||'—')+'</b></div><div class="stat"><span>Se vierem por inbound ('+pcX(convI,0)+', amostra pequena)</span><b>'+(leadsI||'—')+'</b></div></div></div>';
+  return h}
+function convOrigemCard(){var CO=convPorOrigem();return '<h3 style="margin-top:22px">Conversão por origem</h3><div class="card"><div style="overflow:auto"><table class="mini"><tr><th>Origem</th><th>Leads</th><th>Contato feito</th><th>Respondeu</th><th>Amostra</th><th>Negociação</th><th>Clientes</th><th>Conversão</th></tr>'
+  +CO.map(function(x){return '<tr><td><b>'+esc(x.o)+'</b></td><td>'+x.leads+'</td><td>'+x.contato+'</td><td>'+x.resp+'</td><td>'+x.am+'</td><td>'+x.neg+'</td><td><b>'+x.cli+'</b></td><td>'+(x.contato?pcX(x.conv,1):'<span class="muted">sem contato ainda</span>')+'</td></tr>'}).join('')+'</table></div></div>'}
+function vIcp(){var all=D.leads,mapa=cidadeMapa(all.map(function(l){return l.Cidade})),pe=function(l){return okResp(l['Responsável'])};
+  var T=icpTracos(),h='<div class="ph"><div><h2>'+NOME.icp+'</h2><div class="muted">Quem priorizar e qual o tamanho da oportunidade</div></div><span>'+(INT?recarregar():'')+'</span></div>'+pessoaBar();
+  h+='<div class="card" style="margin-bottom:12px"><h3>Perfil dos clientes atuais (base do ICP)</h3>'+(T.n?'<div class="row" style="gap:24px"><div>Clientes ganhos no CRM: <b>'+T.n+'</b><br>Potencial médio: <b>'+brl(T.pot)+'/mês</b></div><div style="flex:1;min-width:220px"><div class="muted">Segmentos</div>'+barsX(Object.keys(T.seg).map(function(k){return [k,T.seg[k]]}),function(v){return v},'#00785A')+'</div><div style="flex:1;min-width:220px"><div class="muted">Cidades</div>'+barsX(Object.keys(T.cid).reduce(function(a,k){var c=mapa(k)||'(sem cidade)';var x=a.filter(function(y){return y[0]===c})[0];if(x)x[1]+=T.cid[k];else a.push([c,T.cid[k]]);return a},[]),function(v){return v},'#DB853D')+'</div></div>':'<div class="muted">Ainda não há leads em "Ganho" no CRM.</div>')+'<div class="muted" style="margin-top:8px">Foco: restaurantes de ticket médio alto, porque o produto é premium e precisa de um cardápio que sustente o valor do prato e eleve o ticket.</div></div>';
+  var fila=all.filter(function(l){return ativo(l)&&l.Etapa!=='Sugerido'&&pe(l)}).map(function(l){var r=scoreLead(l,T);return {l:l,s:r.s,why:r.why}}).sort(function(a,b){return b.s-a.s}).slice(0,12);
+  h+='<h3>🎯 Falar hoje com estes ('+fila.length+')</h3>'+(fila.length?'<div style="overflow:auto"><table><tr><th>Lead</th><th>Etapa</th><th>Responsável</th><th>Por que agora</th><th>Score</th><th></th></tr>'+fila.map(function(x){return '<tr class="click" onclick="openLead(\''+x.l.ID+'\')"><td><b>'+esc(x.l.Estabelecimento)+'</b><div class="muted">'+esc(mapa(x.l.Cidade))+'</div></td><td>'+esc(x.l.Etapa)+'</td><td>'+esc(x.l['Responsável']||'—')+'</td><td>'+(x.why.map(function(w){return '<span class="tag gray" style="margin:1px">'+esc(w)+'</span>'}).join('')||'<span class="muted">—</span>')+'</td><td><b>'+x.s+'</b></td><td><button class="btn sm sec">Abrir</button></td></tr>'}).join('')+'</table></div>':'<div class="card">Nenhum lead ativo neste filtro.</div>');
+  var sug=all.filter(function(l){return l.Etapa==='Sugerido'}).map(function(l){var r=scoreSugerido(l,T);return {l:l,s:r.s,why:r.why}}).sort(function(a,b){return b.s-a.s}).slice(0,12),temPreco=all.some(function(l){return obsLead(l).preco>0});
+  h+='<h3 style="margin-top:18px">💎 Prospectar primeiro (ticket alto entre os Sugeridos)</h3>'+(temPreco?'':'<div class="tag yel" style="display:block;white-space:normal;margin-bottom:8px">O nível de preço do restaurante passa a ser coletado nas próximas buscas no Maps. Por enquanto a ordem usa nota, avaliações e segmento.</div>')
+    +(sug.length?'<div style="overflow:auto"><table><tr><th>Lead</th><th>Cidade</th><th>Sinais</th><th>Score</th></tr>'+sug.map(function(x){return '<tr class="click" onclick="openLead(\''+x.l.ID+'\')"><td><b>'+esc(x.l.Estabelecimento)+'</b></td><td>'+esc(mapa(x.l.Cidade))+'</td><td>'+(x.why.map(function(w){return '<span class="tag gray" style="margin:1px">'+esc(w)+'</span>'}).join('')||'<span class="muted">—</span>')+'</td><td><b>'+x.s+'</b></td></tr>'}).join('')+'</table></div>':'<div class="card">Nenhum lead sugerido.</div>');
+  var map=all.filter(function(l){return l['Place ID']||l.Etapa==='Ganho'}),cid={};
+  map.forEach(function(l){var c=mapa(l.Cidade)||'(sem cidade)',o=cid[c]=cid[c]||{n:0,g:0,w:0,wg:0},w=pesoPDV(l);o.n++;o.w+=w;if(l.Etapa==='Ganho'){o.g++;o.wg+=w}});
+  h+='<h3 style="margin-top:18px">Distribuição por cidade (numérica vs. ponderada pela importância do ponto)</h3><div style="overflow:auto"><table><tr><th>Cidade</th><th>PDVs mapeados</th><th>Clientes</th><th>Distribuição numérica</th><th>Distribuição ponderada</th></tr>'+Object.keys(cid).sort(function(a,b){return cid[b].n-cid[a].n}).map(function(k){var o=cid[k];return '<tr><td><b>'+esc(k)+'</b></td><td>'+o.n+'</td><td>'+o.g+'</td><td>'+pcX(o.g/o.n,1)+'</td><td>'+pcX(o.w?o.wg/o.w:0,1)+'</td></tr>'}).join('')+'</table></div><div class="muted" style="margin:6px 2px;font-size:12px">Peso do ponto = avaliações no Maps (log) × fator de ticket ($ = 1, $$ = 1,3, $$$ = 1,6, $$$$ = 2). Cidades escritas de formas diferentes (São Paulo, são paulo, São Paulo/SP) contam juntas.</div>';
+  h+=mercadoCard()+convOrigemCard();
+  $('main').innerHTML=h;if(!INT)intLoad()}
+
 var COR = {'Sugerido':'#B9A6E0','Mapeado':'#9E9E9E','Contato feito':'#4A7BF7','Respondeu':'#2EA3C7','Amostra enviada':'#F2C94C','Negociação':'#F2572B','Ganho':'#2E9E5B','Perdido':'#E5484D','Frio':'#9E9E9E'};
-var RESPONDEU = ['Respondeu','Interessado','Pediu valores / material','Pediu amostra','Encaminhou para outro contato/canal','Pediu para retornar depois','Sem interesse'];
+var RESPONDEU = ['Respondeu','Interessado','Pediu valores / material','Pediu amostra','Pediu para retornar depois','Sem interesse'];
 
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -818,7 +899,7 @@ function opts(list,sel,blank){return (blank!==undefined?'<option value="">'+blan
 
 function load(){busy(true);google.script.run.withSuccessHandler(function(r){busy(false);setData(r);render();intLoad()}).withFailureHandler(function(e){busy(false);$('main').innerHTML='<div class="card">Não foi possível carregar: '+esc(e.message||e)+'</div>'}).getAll()}
 function setData(r){D=r;var saved='';try{saved=localStorage.getItem('morphe_me')||''}catch(e){}
-  ME=(r.me&&r.me.nome)||saved||'';var s=$('meSel');s.innerHTML=opts(D.users.map(function(u){return u.nome}),ME,'👤 Escolha seu nome');s.className=ME?'':'vazio';s.onchange=function(){ME=s.value;s.className=ME?'':'vazio';try{localStorage.setItem('morphe_me',ME)}catch(e){};render()};}
+  ME=(r.me&&r.me.nome)||saved||'';if(!F._ini&&ME){F.resp=ME;F._ini=1}var s=$('meSel');s.innerHTML=opts(D.users.map(function(u){return u.nome}),ME,'👤 Escolha seu nome');s.className=ME?'':'vazio';s.onchange=function(){ME=s.value;F.resp=ME;s.className=ME?'':'vazio';try{localStorage.setItem('morphe_me',ME)}catch(e){};render()};}
 function upsertById_(arr,item){if(!item)return;var i=arr.findIndex(function(x){return x.ID===item.ID});if(i>=0)arr[i]=item;else arr.unshift(item)}
 // Aplica a mudança na tela ANTES da resposta do servidor (otimista) e desfaz se a chamada falhar.
 function otimista(leadId,patch,fn){var l=lead(leadId);var antes=l?Object.assign({},l):null;if(l){Object.assign(l,patch);render()}return fn().catch(function(e){if(l&&antes){Object.assign(l,antes);render()}throw e})}
@@ -1107,7 +1188,7 @@ function inPeriod(s){if(!PERIOD)return true;var x=days(s);return x!==null&&x<=PE
 function pct(a,b){return b?Math.round(a/b*100)+'%':'—'}
 function bars(rows,max,cor){max=max||Math.max.apply(null,rows.map(function(r){return r[1]}).concat([1]));return rows.map(function(r){return '<div class="brow"><div class="lb">'+esc(r[0])+'</div><div style="flex:1"><div class="bar" style="width:'+Math.max(r[1]/max*100,4)+'%;background:'+(r[3]||cor||'var(--verde)')+'">'+r[1]+'</div></div><div class="rt">'+(r[2]||'')+'</div></div>'}).join('')}
 function kpi(l,v,s,cor){return '<div class="card kpi"><div class="l">'+l+'</div><div class="v" style="'+(cor?'color:'+cor:'')+'">'+v+'</div><div class="s">'+(s||'')+'</div></div>'}
-function vDash(){
+function vDashBase(){
   var L=D.leads.filter(function(l){return l.Etapa!=='Sugerido'&&inPeriod(l['Criado em'])});
   var A=D.atividades.filter(function(a){return inPeriod(a.Data)});
   var C=A.filter(function(a){return a.Tipo==='Contato'});
@@ -1164,7 +1245,7 @@ function vDash(){
    kpi('Leads no funil',ativos,'em andamento agora')+
    kpi('Contatos na semana',sem,'meta: '+D.metaContatosSemana)+
    kpi('Taxa de resposta geral',pct(respTot,contTot),respTot+' de '+contTot+' leads contatados')+
-   kpi('Amostras enviadas',amostras,pct(amostras,L.length)+' dos leads')+
+   kpi('Amostras entregues',amostrasEnt(L),pct(amostrasEnt(L),L.length)+' dos leads')+
    kpi('Novos clientes',ganhos,'conversão '+pct(ganhos,L.length)+' · meta/mês: '+D.metaGanhosMes)+
    kpi('Tempo até fechar',tempo.length?Math.round(tempo.reduce(function(a,b){return a+b},0)/tempo.length)+' dias':'—','média, da entrada ao ganho')+
    kpi('Sem contato há 30d+',semCont.length,'leads ativos sem contato recente',semCont.length>5?'var(--verm)':'')+'</div>'+
@@ -1172,7 +1253,7 @@ function vDash(){
   '<div class="row" style="margin-top:14px;align-items:flex-start">'+
    '<div class="card" style="flex:1;min-width:340px"><h3>Funil de conversão — taxa por etapa</h3>'+bars(fun)+'<div class="muted">Perdidos no período: '+perd+'</div></div>'+
    '<div class="card" style="flex:1;min-width:340px"><h3>Taxa de resposta por canal</h3>'+(canalRows.length?canalRows.map(function(r){return '<div class="brow"><div class="lb">'+esc(r[0])+'</div><div style="flex:1;background:#F4EBDA;border-radius:6px"><div class="bar" style="width:'+Math.max(r[2]/Math.max(r[1],1)*100,6)+'%;background:var(--verde2)">'+pct(r[2],r[1])+'</div></div><div class="rt">'+r[2]+' de '+r[1]+' leads</div></div>'}).join(''):'<div class="muted">Sem contatos no período.</div>')+
-   '<h3 style="margin-top:16px">Quando muda de canal</h3>'+(migRows.length?migRows.map(function(r){return '<div class="brow"><div class="lb">'+esc(r[0])+'</div><div style="flex:1;background:#F4EBDA;border-radius:6px"><div class="bar" style="width:'+Math.max(r[2]/Math.max(r[1],1)*100,6)+'%;background:var(--laranja)">'+pct(r[2],r[1])+'</div></div><div class="rt">'+r[2]+' de '+r[1]+' responderam</div></div>'}).join(''):'<div class="muted">Nenhuma troca de canal.</div>')+'</div></div>'+
+   '</div></div>'+
   // Tempo médio por etapa + Dia da semana
   '<div class="row" style="margin-top:14px;align-items:flex-start">'+
    '<div class="card" style="flex:1;min-width:320px"><h3>⏱ Tempo médio em cada etapa</h3>'+(tempoRows.length?bars(tempoRows,Math.max.apply(null,tempoRows.map(function(r){return r[1]})),'var(--azul)'):'<div class="muted">Sem histórico suficiente de mudanças de etapa ainda.</div>')+'</div>'+

@@ -38,12 +38,12 @@ function lerMonitor_() {
   var mon = { clientes: [], pedidos: [], fups: [], sellout: [], fichas: {}, listas: {} };
   rng('Clientes', 8).forEach(function (r) {
     if (!r[0]) return;
-    mon.clientes.push({ nome: String(r[0]).trim(), tipo: String(r[1] || '').trim(), cidade: String(r[2] || ''), ciclo: num(r[3]), antec: num(r[4]), obs: String(r[5] || ''), motivo: String(r[6] || ''), registro: dia(r[7]) });
+    mon.clientes.push({ nome: String(r[0]).trim(), tipo: String(r[1] || '').trim(), cidade: cidadeCanon_(r[2]) || String(r[2] || ''), ciclo: num(r[3]), antec: num(r[4]), obs: String(r[5] || ''), motivo: String(r[6] || ''), registro: dia(r[7]) });
   });
-  rng('Pedidos B2B', 24).forEach(function (r) {
+  rng('Pedidos B2B', 25).forEach(function (r) {
     if (!r[1]) return;
     mon.pedidos.push({ data: dia(r[0]), cliente: String(r[1]).trim(), tipo: String(r[2] || '').trim(), postas: num(r[3]), c200: num(r[4]), c300: num(r[5]), d200: num(r[6]), d300: num(r[7]),
-      un: num(r[8]), kg: num(r[9]), entrega: dia(r[10]), transporte: String(r[12] || ''), origem: String(r[13] || ''), obs: String(r[14] || ''), tabela: String(r[15] || ''), valor: num(r[20]), custo: num(r[21]), margemR: num(r[22]), margemPct: (typeof r[23] === 'number') ? Math.round(r[23] * 1000) / 10 : num(r[23]) });
+      un: num(r[8]), kg: num(r[9]), entrega: dia(r[10]), transporte: String(r[12] || ''), origem: String(r[13] || ''), obs: String(r[14] || ''), tabela: String(r[15] || ''), valor: num(r[20]), custo: num(r[21]), margemR: num(r[22]), margemPct: (typeof r[23] === 'number') ? Math.round(r[23] * 1000) / 10 : num(r[23]), frete: num(r[24]) });
   });
   rng('Follow-ups', 7).forEach(function (r) {
     if (!r[1]) return;
@@ -93,11 +93,25 @@ function lerListas_(ss, mon) {
 function hojeISO_() { return Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd'); }
 
 // ------------------------------------------------------------------ Carteira e churn
+function skusTxt_(a) { var o = []; [['postas', 'Posta'], ['c200', 'Cubos 200g'], ['c300', 'Cubos 300g'], ['d200', 'Desfiado 200g'], ['d300', 'Desfiado 300g']].forEach(function (k) { if (a[k[0]] > 0) o.push(a[k[0]] + '× ' + k[1]); }); return o.join(' · '); }
 function ehProspect_(t) { return /prospe/i.test(String(t || '')); }
 function ehInativo_(t) { return /inativ/i.test(String(t || '')); }
 var BAIXA_VENDA_ = /baixo em vendas|baixa venda|n[aã]o girou|vendeu pouco|ningu[eé]m pediu|sem giro/i;
+var MIN_CID_ = { de: 1, da: 1, do: 1, das: 1, dos: 1, e: 1 };
+/** "são paulo", "São Paulo, SP", "SÃO PAULO/SP" -> "São Paulo/SP". Vazio ou "(confirmar cidade)" -> "". */
+function cidadeCanon_(c) {
+  var t = String(c || '').replace(/\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  var uf = '', m = t.match(/[\/,\-]\s*([A-Za-z]{2})\s*$/);
+  if (m) { uf = m[1].toUpperCase(); t = t.slice(0, m.index); }
+  t = t.replace(/[\/,]+\s*[A-Za-z]{2}\s*$/, '').replace(/[,\/\-]+\s*$/, '').trim();
+  if (!t) return '';
+  var nome = t.toLowerCase().split(' ').map(function (w, i) { return (i > 0 && MIN_CID_[w]) ? w : w.charAt(0).toUpperCase() + w.slice(1); }).join(' ');
+  if (!uf && /^s[aã]o paulo$/i.test(nome)) uf = 'SP';
+  return nome + (uf ? '/' + uf : '');
+}
 function regiao_(cidade) {
-  var c = String(cidade || '');
+  var c = cidadeCanon_(cidade) || String(cidade || '');
   if (/\/SP\s*$/i.test(c)) return /^s[ãa]o paulo/i.test(c) ? 'SP Capital' : 'Interior SP';
   if (/\/RS\s*$/i.test(c)) return 'Rio Grande do Sul';
   return 'Outros estados';
@@ -143,7 +157,7 @@ function calcCarteira_(mon, hoje) {
   var ped = agruparPor_(mon.pedidos, function (p) { return p.cliente; });
   var fup = agruparPor_(mon.fups, function (f) { return f.cliente; });
   var ativos = [], prospects = [], inativos = [];
-  var conv = { comAmostra: 0, converteram: 0, dias: [] };
+  var conv = { comAmostra: 0, converteram: 0, dias: [] }, amostrasLista = [], pendentes = 0;
 
   mon.clientes.forEach(function (c) {
     var k = nrm_(c.nome), todos = ped[k] || [];
@@ -151,22 +165,27 @@ function calcCarteira_(mon, hoje) {
     var amostras = todos.filter(function (p) { return p.tipo === 'Amostra'; }).sort(function (a, b) { return (a.data || '') < (b.data || '') ? -1 : 1; });
     var fu = (fup[k] || []).slice().sort(function (a, b) { return a.data < b.data ? 1 : -1; });
     if (ehInativo_(c.tipo)) { inativos.push({ nome: c.nome, cidade: c.cidade, motivo: c.motivo }); return; }
-    var ehAtivo = c.tipo === 'Ativo' || (pedidos.length > 0 && !ehProspect_(c.tipo));
+    var ehAtivo = pedidos.length > 0 || (c.tipo === 'Ativo' && !amostras.length); // 'Ativo' sem pedido real e com amostra é prospect
 
-    if (amostras.length) {
+    var amEnt = amostras.filter(function (a) { return a.entrega; }); // só amostra com entrega confirmada conta
+    pendentes += amostras.length - amEnt.length;
+    var dEnt0 = amEnt.length ? Math.min.apply(null, amEnt.map(function (a) { return iDia_(a.entrega); })) : null, convDia = null;
+    if (amEnt.length) {
       conv.comAmostra++;
-      var d0 = iDia_(amostras[0].data), conv1 = pedidos.filter(function (p) { return d0 === null || iDia_(p.data) >= d0; })[0];
-      if (conv1 && d0 !== null) { conv.converteram++; conv.dias.push(iDia_(conv1.data) - d0); }
+      var conv1 = pedidos.filter(function (p) { return iDia_(p.data) >= dEnt0; })[0];
+      if (conv1) { conv.converteram++; convDia = iDia_(conv1.data) - dEnt0; conv.dias.push(convDia); }
     }
+    amostras.forEach(function (a) { amostrasLista.push({ cliente: c.nome, data: a.data, entrega: a.entrega, skus: skusTxt_(a), un: a.un, kg: a.kg, custo: Math.round(a.custo * 100) / 100, frete: a.frete || 0, entregue: !!a.entrega, converteu: !!(a.entrega && dEnt0 !== null && convDia !== null), diasConv: a.entrega ? convDia : null, tipoCliente: ehAtivo ? 'cliente' : 'prospect' }); });
 
     if (!ehAtivo) {
       var ult = amostras[amostras.length - 1] || null;
       var refDia = ult ? iDia_(ult.entrega || ult.data) : null;
       var resp = ult ? fu.some(function (f) { var d = iDia_(f.data); return d !== null && refDia !== null && d >= refDia && nrm_(f.resultado).indexOf('naorespondeu') < 0; }) : false;
       var dias = refDia !== null ? H - refDia : null;
-      var status = !ult ? 'sem amostra' : (!ult.entrega ? 'aguardando entrega' : (resp ? 'respondeu' : (dias >= 7 ? 'sem resposta 7d+' : 'aguardando retorno')));
+      var temEntrega = amostras.some(function (a) { return a.entrega; });
+      var status = !ult ? 'sem amostra' : (!temEntrega ? 'aguardando entrega' : (resp ? 'respondeu' : (dias >= 7 ? 'sem resposta 7d+' : 'aguardando retorno')));
       prospects.push({ nome: c.nome, cidade: c.cidade, pedidoAmostra: ult ? ult.data : '', entrega: ult ? ult.entrega : '', diasDesde: dias, status: status,
-        diasParaEntregar: ult && ult.entrega && ult.data ? iDia_(ult.entrega) - iDia_(ult.data) : null, ultimoFup: fu[0] ? fu[0].resultado : '', motivo: c.motivo });
+        skus: ult ? skusTxt_(ult) : '', custo: Math.round(soma_(amostras, function (a) { return a.custo; }) * 100) / 100, nAmostras: amostras.length, diasParaEntregar: ult && ult.entrega && ult.data ? iDia_(ult.entrega) - iDia_(ult.data) : null, ultimoFup: fu[0] ? fu[0].resultado : '', motivo: c.motivo });
       return;
     }
 
@@ -215,9 +234,10 @@ function calcCarteira_(mon, hoje) {
   ativos.sort(function (a, b) { return (b.score === null ? -1 : b.score) - (a.score === null ? -1 : a.score); });
   var risco = ativos.filter(function (a) { return a.nivel === 'critico' || a.nivel === 'alto'; });
   var sem7 = prospects.filter(function (p) { return p.status === 'sem resposta 7d+'; });
-  return { hoje: hoje, ativos: ativos, prospects: prospects, inativos: inativos, duplicados: duplicados, resumo: {
+  return { hoje: hoje, ativos: ativos, prospects: prospects, amostras: amostrasLista.sort(function (a, b) { return (b.data || '') < (a.data || '') ? -1 : 1; }), inativos: inativos, duplicados: duplicados, resumo: {
     nAtivos: ativos.length, nRisco: risco.length, valorEmRisco: Math.round(soma_(risco, function (a) { return a.ticketMedio; })),
-    nProspects: prospects.length, prospectsSem7d: sem7.length, amostrasTotal: conv.comAmostra, convertidos: conv.converteram,
+    nProspects: prospects.length, prospectsSem7d: sem7.length, amostrasTotal: conv.comAmostra, amostrasPendentes: pendentes, convertidos: conv.converteram, custoAmostras: Math.round(soma_(amostrasLista, function (a) { return a.custo; })),
+    custoPorConvertido: conv.converteram ? Math.round(soma_(amostrasLista, function (a) { return a.custo; }) / conv.converteram) : null,
     taxaConversao: conv.comAmostra ? conv.converteram / conv.comAmostra : null, diasMedioConversao: conv.dias.length ? Math.round(soma_(conv.dias, function (d) { return d; }) / conv.dias.length) : null } };
 }
 
@@ -467,6 +487,34 @@ function promoverParaAtivo_(ss, nome) {
   for (var i = 0; i < v.length; i++) if (nrm_(v[i][0]) === nrm_(nome)) { if (v[i][1] !== 'Ativo') cl.getRange(i + 2, 2).setValue('Ativo'); return; }
 }
 
+/** Registra o ENVIO de amostra (cliente novo ou existente, SKUs, entrega e frete opcionais). Prospect não vira cliente: só no 1º pedido. */
+function registrarAmostra(o) {
+  if (!o.cliente) throw new Error('Escolha ou digite o cliente.');
+  var q = [+o.postas || 0, +o.c200 || 0, +o.c300 || 0, +o.d200 || 0, +o.d300 || 0];
+  if (!q.some(function (x) { return x > 0; })) throw new Error('Informe os SKUs enviados (quantidade de pelo menos um produto).');
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  var salvo = null;
+  try {
+    var ss = SpreadsheetApp.openById(CFG.MONITOR_ID), cl = ss.getSheetByName('Clientes'), nome = String(o.cliente).trim();
+    var v = cl.getRange(2, 1, Math.max(cl.getLastRow() - 1, 1), 1).getValues(), existe = false;
+    for (var i = 0; i < v.length; i++) if (nrm_(v[i][0]) === nrm_(nome)) { nome = String(v[i][0]).trim(); existe = true; break; }
+    if (!existe) {
+      var rc = primeiraLinhaVazia_(cl, 1, 2);
+      cl.getRange(rc, 1, 1, 6).setValues([[nome, 'Prospecção', cidadeCanon_(o.cidade) || '', 7, 0, o.obsCliente || '']]);
+    }
+    var pb = ss.getSheetByName('Pedidos B2B'), row = primeiraLinhaVazia_(pb, 2, 2);
+    pb.getRange(row, 1, 1, 8).setValues([[o.data ? parseDay_(o.data) : new Date(), nome, 'Amostra', q[0], q[1], q[2], q[3], q[4]]]);
+    if (o.entrega) pb.getRange(row, 11).setValue(parseDay_(o.entrega));
+    if (o.origem) pb.getRange(row, 14).setValue(o.origem);
+    if (o.obs) pb.getRange(row, 15).setValue(o.obs);
+    if (+o.frete > 0) pb.getRange(row, 25).setValue(+o.frete);
+    SpreadsheetApp.flush();
+    salvo = { linha: row, custo: pb.getRange(row, 22).getValue() };
+    limparCacheMonitor_();
+  } finally { lock.releaseLock(); }
+  var out = getInteligencia(); out.salvo = salvo; return out;
+}
+
 /** o = {data, cliente, tipo:'Pedido', postas,c200,c300,d200,d300, entrega, transporte, origem, obs, tabela, valorAjustado} */
 function registrarPedido(o) {
   if (!o.cliente) throw new Error('Escolha o cliente.');
@@ -482,6 +530,7 @@ function registrarPedido(o) {
     if (o.transporte) pb.getRange(row, 13).setValue(o.transporte);
     if (o.origem) pb.getRange(row, 14).setValue(o.origem);
     if (o.obs) pb.getRange(row, 15).setValue(o.obs);
+    if (+o.frete > 0) pb.getRange(row, 25).setValue(+o.frete); // coluna Y (Frete R$)
     // Colunas I, J, L, S, V são fórmulas de matriz e R, U, W, X fórmulas por linha: nunca escrever nelas
     if (o.tabela) pb.getRange(row, 16).setValue(o.tabela);
     pb.getRange(row, 17).setValue(o.faixa || 'Auto');
@@ -642,6 +691,69 @@ function transferirLead(id, para, quem) {
   } finally { lock.releaseLock(); }
 }
 
+// Migração única (ajustes de regra e de dados). Idempotente: pode rodar de novo sem duplicar nada.
+function migrarAjustesV2_() {
+  var ss = SpreadsheetApp.openById(CFG.MONITOR_ID), log = [];
+  var cl = ss.getSheetByName('Clientes'), pb = ss.getSheetByName('Pedidos B2B');
+  // 1) coluna Frete (R$) nos pedidos
+  if (pb && !pb.getRange('Y1').getValue()) { pb.getRange('X1').copyTo(pb.getRange('Y1'), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false); pb.getRange('Y1').setValue('Frete (R$)'); pb.setColumnWidth(25, 90); log.push('coluna Frete'); }
+  // 2) origem "Pesquisa Claude" -> "Lista pesquisada"
+  try {
+    var crm = ss_(), C = crm.getSheetByName('Config'), L = crm.getSheetByName('Leads'), n = 0;
+    var lo = C.getRange(2, 2, 60, 1).getValues(); lo.forEach(function (r, i) { if (/^pesquisa claude/i.test(String(r[0]))) { C.getRange(2 + i, 2).setValue('Lista pesquisada'); n++; } });
+    var h = L.getRange(1, 1, 1, L.getLastColumn()).getValues()[0], iO = h.indexOf('Origem') + 1;
+    if (iO > 0 && L.getLastRow() > 1) { var ov = L.getRange(2, iO, L.getLastRow() - 1, 1).getValues(); ov.forEach(function (r, i) { if (/^pesquisa claude/i.test(String(r[0]))) { ov[i][0] = 'Lista pesquisada'; n++; } }); L.getRange(2, iO, ov.length, 1).setValues(ov); }
+    invalidarCacheConfig_(); log.push(n + ' origem(ns) renomeada(s)');
+  } catch (e) { log.push('origem: ' + e); }
+  var mon = lerMonitorSemCache_();
+  // 3) cidades padronizadas em Clientes
+  if (cl && cl.getLastRow() > 1) {
+    var cv = cl.getRange(2, 3, cl.getLastRow() - 1, 1).getValues(), m3 = 0;
+    cv.forEach(function (r, i) { var c = cidadeCanon_(r[0]); if (c && c !== String(r[0]).trim()) { cv[i][0] = c; m3++; } });
+    if (m3) cl.getRange(2, 3, cv.length, 1).setValues(cv); log.push(m3 + ' cidade(s) padronizada(s)');
+  }
+  // 4) Bruna era a Raissa: mescla o cadastro e corrige o lead no CRM
+  var raissa = (mon.clientes.filter(function (c) { return /^raissa/i.test(c.nome); })[0] || {}).nome, bruna = (mon.clientes.filter(function (c) { return /^bruna/i.test(c.nome); })[0] || {}).nome;
+  if (raissa && bruna) { mesclarClientesCore_(raissa, bruna); log.push('Bruna mesclada em ' + raissa); }
+  try {
+    var L2 = sh_('Leads'), h2 = L2.getRange(1, 1, 1, L2.getLastColumn()).getValues()[0], iN = h2.indexOf('Estabelecimento') + 1;
+    if (L2.getLastRow() > 1) { var nv = L2.getRange(2, iN, L2.getLastRow() - 1, 1).getValues(), c4 = 0; nv.forEach(function (r, i) { if (/^bruna/i.test(String(r[0]))) { nv[i][0] = raissa || 'Raissa (Amostras para clientes)'; c4++; } }); if (c4) { L2.getRange(2, iN, nv.length, 1).setValues(nv); log.push(c4 + ' lead(s) Bruna -> Raissa'); } }
+  } catch (e) { log.push('lead Bruna: ' + e); }
+  // 5) linhas de amostra
+  if (pb && pb.getLastRow() > 1) {
+    var rows = pb.getRange(2, 1, pb.getLastRow() - 1, 15).getValues(), vistos = {};
+    rows.forEach(function (r, i) { if (r[1] && r[2] === 'Amostra') { var k = nrm_(r[1]); vistos[k] = (vistos[k] || 0) + 1; } });
+    rows.forEach(function (r, i) {
+      var linha = 2 + i, nm = String(r[1] || ''), vazio = !(+r[3] || +r[4] || +r[5] || +r[6] || +r[7]);
+      if (!nm || r[2] !== 'Amostra' || !vazio) return;
+      if (/raissa/i.test(nm)) { pb.getRange(linha, 4, 1, 5).setValues([[5, 3, 0, 5, 0]]); log.push('Raissa: SKUs 5 postas / 3 cubos 200g / 5 desfiado 200g'); }
+      else if (/damodara|personal chef/i.test(nm)) {
+        if (vistos[nrm_(nm)] > 1) { pb.getRange(linha, 1, 1, 3).clearContent(); pb.getRange(linha, 4, 1, 12).clearContent(); vistos[nrm_(nm)]--; log.push('amostra duplicada vazia removida: ' + nm); }
+        else { pb.getRange(linha, 1).setValue(new Date(2026, 8, 29)); pb.getRange(linha, 4, 1, 5).setValues([[0, 0, 0, 1, 0]]); log.push(nm + ': 1 desfiado 200g, pedido 29/09, entrega a confirmar'); }
+      }
+    });
+  }
+  // 6) Taverna Medieval (amostra da Maria, 30/09, 1 desfiado 200g): cria só se ainda não existir
+  var tem = (mon.clientes.concat([]).filter(function (c) { return /taverna medieval/i.test(c.nome); })[0]);
+  if (!tem && cl && pb) {
+    var rc = primeiraLinhaVazia_(cl, 1, 2); cl.getRange(rc, 1, 1, 6).setValues([['Taverna Medieval', 'Prospecção', '', 7, 0, 'Amostra enviada pela Maria']]);
+    var rp = primeiraLinhaVazia_(pb, 2, 2); pb.getRange(rp, 1, 1, 8).setValues([[new Date(2026, 8, 30), 'Taverna Medieval', 'Amostra', 0, 0, 0, 1, 0]]); pb.getRange(rp, 11).setValue(new Date(2026, 8, 30)); pb.getRange(rp, 14).setValue('Prospecção direta');
+    log.push('Taverna Medieval registrada');
+  }
+  // 7) "Ativo" sem pedido real e com amostra vira Prospecção
+  mon = lerMonitorSemCache_();
+  var comPedido = {}, comAmostra = {};
+  mon.pedidos.forEach(function (p) { if (p.tipo === 'Pedido') comPedido[nrm_(p.cliente)] = 1; if (p.tipo === 'Amostra') comAmostra[nrm_(p.cliente)] = 1; });
+  if (cl && cl.getLastRow() > 1) {
+    var tv = cl.getRange(2, 1, cl.getLastRow() - 1, 2).getValues(), m7 = 0;
+    tv.forEach(function (r, i) { if (r[0] && r[1] === 'Ativo' && !comPedido[nrm_(r[0])] && comAmostra[nrm_(r[0])]) { cl.getRange(2 + i, 2).setValue('Prospecção'); m7++; } });
+    if (m7) log.push(m7 + ' cadastro(s) "Ativo" sem pedido real -> Prospecção');
+  }
+  limparCacheMonitor_();
+  return log.join('; ') || 'nada a ajustar';
+}
+function lerMonitorSemCache_() { limparCacheMonitor_(); return lerMonitor_(); }
+
 // Migração única (roda sozinha pelo CRM): prepara a planilha de Monitoramento para o app unificado.
 function migrarMonitoramentoV1_() {
   var ss = SpreadsheetApp.openById(CFG.MONITOR_ID), log = [];
@@ -666,4 +778,4 @@ function migrarMonitoramentoV1_() {
   return log.join('; ');
 }
 
-if (typeof module !== 'undefined') module.exports = { calcMeta_: calcMeta_, montarInteligencia_: montarInteligencia_, calcPainel_: calcPainel_, calcCarteira_: calcCarteira_, calcSell_: calcSell_, calcPrevisaoBase_: calcPrevisaoBase_, iDia_: iDia_, fromDia_: fromDia_, nrm_: nrm_, INT_: INT_ };
+if (typeof module !== 'undefined') module.exports = { cidadeCanon_: cidadeCanon_, calcMeta_: calcMeta_, montarInteligencia_: montarInteligencia_, calcPainel_: calcPainel_, calcCarteira_: calcCarteira_, calcSell_: calcSell_, calcPrevisaoBase_: calcPrevisaoBase_, iDia_: iDia_, fromDia_: fromDia_, nrm_: nrm_, INT_: INT_ };
