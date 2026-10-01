@@ -224,7 +224,7 @@ function calcCarteira_(mon, hoje) {
     var sit = situacao_(n, dUlt, ciclo, antecDias, H, fu, ultimo ? ultimo.data : '');
     ativos.push({ situacao: sit, nome: c.nome, cidade: c.cidade, tipoCadastro: c.tipo, nPedidos: n, ultimoPedido: ultimo ? ultimo.data : '', diasDesde: diasDesde, ciclo: ciclo,
       proxRecompra: dUlt !== null ? fromDia_(dUlt + ciclo) : '', atrasoDias: diasDesde !== null ? diasDesde - ciclo : null, kg90: r1_(kg90), kgPrev90: r1_(kgPrev), variacao: variacao,
-      ticketMedio: Math.round(ticket), kgMedio: r1_(kgMedio), receita: Math.round(vTot), custo: Math.round(vTot - mTot), antec: c.antec > 0 ? c.antec : 3, regiao: regiao_(c.cidade), obs: c.obs, mix: mix, margemPct: vTot ? Math.round(mTot / vTot * 1000) / 10 : null, score: score, nivel: nivel, pts: pts, flags: flags,
+      ultimoMix: ultimo ? { postas: ultimo.postas || 0, c200: ultimo.c200 || 0, c300: ultimo.c300 || 0, d200: ultimo.d200 || 0, d300: ultimo.d300 || 0 } : null, ultimoValor: ultimo ? Math.round(ultimo.valor || 0) : 0, ticketMedio: Math.round(ticket), kgMedio: r1_(kgMedio), receita: Math.round(vTot), custo: Math.round(vTot - mTot), antec: c.antec > 0 ? c.antec : 3, regiao: regiao_(c.cidade), obs: c.obs, mix: mix, margemPct: vTot ? Math.round(mTot / vTot * 1000) / 10 : null, score: score, nivel: nivel, pts: pts, flags: flags,
       ultimoFup: fu[0] ? { data: fu[0].data, resultado: fu[0].resultado, prox: fu[0].prox, obs: fu[0].obs } : null, proxPasso: (fu.filter(function (f) { return f.prox; })[0] || {}).prox || '',
       notas: fu.filter(function (f) { return f.obs || f.prox; }).slice(0, 4).map(function (f) { return { data: f.data, resultado: f.resultado, obs: f.obs, prox: f.prox }; }), motivo: c.motivo, ficha: (mon.fichas || {})[k] || null,
       historico: pedidos.slice(-6).reverse().map(function (p) { return { data: p.data, un: p.un, kg: p.kg, valor: Math.round(p.valor), margemPct: p.margemPct }; }) });
@@ -253,13 +253,13 @@ function calcSell_(mon, hoje) {
     var regs = so[k] || [];
     if (!pedidos.length && !regs.length) return;
     if (ehProspect_(c.tipo) && !pedidos.length) return;
-    function j(arr, f, dias) { return soma_(arr, function (x) { var d = iDia_(x.data); return (d !== null && d > H - dias && d <= H) ? f(x) : 0; }); }
+    function j(arr, f, dias) { return r1_(soma_(arr, function (x) { var d = iDia_(x.data); return (d !== null && d > H - dias && d <= H) ? f(x) : 0; })); }
     var si = { d30: j(pedidos, function (p) { return p.un; }, 30), d60: j(pedidos, function (p) { return p.un; }, 60), d90: j(pedidos, function (p) { return p.un; }, 90) };
     var sa = { d30: j(regs, function (s) { return s.un; }, 30), d60: j(regs, function (s) { return s.un; }, 60), d90: j(regs, function (s) { return s.un; }, 90) };
     var temSell = regs.length > 0;
     var primeiro = temSell ? Math.min.apply(null, regs.map(function (s) { return iDia_(s.data); })) : null;
     var giro = temSell && si.d90 > 0 ? sa.d90 / si.d90 : null;
-    var estoque = Math.max(0, si.d90 - sa.d90);
+    var estoque = r1_(Math.max(0, si.d90 - sa.d90));
     var semanas = temSell ? Math.max(1, Math.min(90, H - primeiro + 1)) / 7 : 0;
     var porSemana = temSell && sa.d90 > 0 ? sa.d90 / semanas : 0;
     var cobertura = porSemana > 0 ? estoque / porSemana : null;
@@ -338,13 +338,15 @@ function calcPainel_(mon, hoje, carteira) {
     pedidos: { prev: cont(ped, 30, 60), now: cont(ped, 0, 30) },
     margem: { prev: Math.round(jan(ped, 30, 60, function (p) { return p.margemR; })), now: Math.round(jan(ped, 0, 30, function (p) { return p.margemR; })) }
   };
-  // previsão de demanda (produção): clientes com próxima compra em até 14 dias × mix médio por pedido
+  // previsão de demanda (produção): clientes ativos que fizeram pedido no último mês, repetindo o ÚLTIMO pedido, com recompra prevista em até 14 dias
   var prev14 = { postas: 0, c200: 0, c300: 0, d200: 0, d300: 0 }, nPrev14 = 0, valor14 = 0;
   carteira.ativos.forEach(function (a) {
-    if (!a.nPedidos || !a.proxRecompra) return;
+    if (!a.nPedidos || !a.proxRecompra || !a.ultimoMix) return;
+    var du = iDia_(a.ultimoPedido);
+    if (du === null || du <= H - 30 || du > H) return;
     if (iDia_(a.proxRecompra) - H > 14) return;
-    nPrev14++; valor14 += a.ticketMedio * Math.max(0.2, 0.9 - (a.score || 0) / 100);
-    ['postas', 'c200', 'c300', 'd200', 'd300'].forEach(function (k) { prev14[k] += a.mix[k] / a.nPedidos; });
+    nPrev14++; valor14 += a.ultimoValor;
+    ['postas', 'c200', 'c300', 'd200', 'd300'].forEach(function (k) { prev14[k] += a.ultimoMix[k]; });
   });
   var previstoSKU = SKU_.map(function (k) { return { sku: k[1], un: Math.round(prev14[k[0]]), kg: r1_(prev14[k[0]] * k[2]) }; });
   // saúde da carteira

@@ -284,6 +284,13 @@ table.mini tr.tot td{font-weight:700;border-top:2px solid var(--linha)}
 .fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;padding:6px 4px}
 .fgrid>div{min-width:0}
 
+.tot-tag{font:700 15px var(--texto);color:var(--selva);white-space:nowrap}
+.gvp{font:700 10.5px var(--texto);fill:#fff}
+.lgd{display:flex;gap:16px;font:500 12px var(--texto);color:var(--ink2);margin:2px 0 4px}.lgd i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.nav-mural{margin-left:4px}
+nav button .ic:empty,.sidebar button .ic:empty{display:none}
+.cdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+
 </style>
 </head>
 <body>
@@ -303,13 +310,14 @@ table.mini tr.tot td{font-weight:700;border-top:2px solid var(--linha)}
 var D = null, VIEW = 'hoje', ME = '', F = {q:'', resp:'', seg:'', orig:'', pvTodos:false}, OPEN = null, DRAG = null, PERIOD = 90;
 var TABS = [['hoje','Hoje'],['funil','Funil'],['leads','Leads'],['sug','Sugeridos'],['buscar','Buscar no Maps'],['mural','Mural'],['dash','Dashboard'],['posVenda','Pós-venda 🔄']];
 /* ===================== Navegação: 4 áreas no topo + itens da área na lateral ===================== */
-var NOME = {hoje:'Meu painel',funil:'Pipeline',leads:'Base de leads',sug:'Lead gen',buscar:'Prospecção ativa',amostras:'Sampling (amostras)',icp:'ICP e lead scoring',dash:'Dashboard de pipeline',
-  carteira:'Saúde da carteira',pedidos:'Pedidos (sell-in)',followups:'Cadência de follow-up',sellin:'Giro: sell-in e sell-out',posVenda:'Contato de pós-venda',painel:'Dashboard do time',previsao:'Forecast e risco',mural:'Mural da equipe'};
+var NOME = {hoje:'Meu painel',funil:'Funil',leads:'Base de leads',sug:'Lead gen',buscar:'Prospecção ativa',amostras:'Sampling (amostras)',icp:'ICP e lead scoring',dash:'Dashboard do funil',
+  carteira:'Pós-venda',pedidos:'Pedidos (sell-in)',followups:'Cadência de follow-up',sellin:'Giro: sell-in e sell-out',posVenda:'Contato de pós-venda',painel:'Dashboard do time',metas:'Metas e mercado',previsao:'Forecast e risco',mural:'Mural da equipe'};
 var AREAS = [
-  {k:'hoje', n:'Meu painel', ic:'🏠', cor:'#006E51', dflt:'hoje', it:[['hoje',NOME.hoje,'🏠']]},
-  {k:'pros', n:'Aquisição', ic:'🎯', cor:'#006E51', dflt:'funil', sub:'Hunting · pré-venda e pipeline', it:[['funil',NOME.funil,'🧭'],['leads',NOME.leads,'👥'],['sug',NOME.sug,'💡'],['buscar',NOME.buscar,'🔎'],['amostras',NOME.amostras,'🧪'],['icp',NOME.icp,'🎯'],['dash',NOME.dash,'📈']]},
-  {k:'pos', n:'Carteira', ic:'🤝', cor:'#FA5528', dflt:'carteira', sub:'Farming · pós-venda e retenção', it:[['carteira',NOME.carteira,'🤝'],['pedidos',NOME.pedidos,'🛒'],['followups',NOME.followups,'📞'],['sellin',NOME.sellin,'📦'],['posVenda',NOME.posVenda,'🔄']]},
-  {k:'gest', n:'Dashboard', ic:'📊', cor:'#DB853D', dflt:'painel', sub:'Números, forecast e metas do time', it:[['painel',NOME.painel,'📊'],['previsao',NOME.previsao,'🔮'],['mural',NOME.mural,'📌']]}
+  {k:'hoje', n:'Meu painel', ic:'', cor:'#006E51', dflt:'hoje', it:[['hoje',NOME.hoje,'']]},
+  {k:'pros', n:'Aquisição', ic:'', cor:'#006E51', dflt:'funil', sub:'Hunting · pré-venda e funil', it:[['funil',NOME.funil,''],['leads',NOME.leads,''],['sug',NOME.sug,''],['buscar',NOME.buscar,''],['amostras',NOME.amostras,''],['icp',NOME.icp,''],['dash',NOME.dash,'']]},
+  {k:'pos', n:'Carteira de clientes', ic:'', cor:'#FA5528', dflt:'carteira', sub:'Farming · pós-venda e retenção', it:[['carteira',NOME.carteira,''],['pedidos',NOME.pedidos,''],['followups',NOME.followups,''],['sellin',NOME.sellin,''],['posVenda',NOME.posVenda,'']]},
+  {k:'gest', n:'Dashboard', ic:'', cor:'#DB853D', dflt:'painel', sub:'Números, forecast e metas do time', it:[['painel',NOME.painel,''],['metas',NOME.metas,''],['previsao',NOME.previsao,'']]},
+  {k:'mural', n:'Mural', ic:'', cor:'#196454', dflt:'mural', it:[['mural',NOME.mural,'']]}
 ];
 function areaDe(v){for(var i=0;i<AREAS.length;i++)for(var j=0;j<AREAS[i].it.length;j++)if(AREAS[i].it[j][0]===v)return AREAS[i];return AREAS[0]}
 function navBadges(){
@@ -329,11 +337,11 @@ function renderNav0(){var b=navBadges(),cur=areaDe(VIEW);
     return '<button class="'+(cur.k===a.k?'on':'')+'" style="--ac:'+a.cor+'" onclick="go(\''+a.dflt+'\')"><span class="ic">'+a.ic+'</span>'+a.n+(n?'<span class="badge" style="background:var(--verm)">'+n+'</span>':'')+'</button>'}).join('')}
 function renderSidebar(){var b=navBadges(),a=areaDe(VIEW);
   $('sidebar').style.setProperty('--ac',a.cor);
-  $('sidebar').innerHTML=(a.k==='hoje'?'':'<div class="sg"><span class="dot"></span>'+a.n+(a.sub?'<small>'+a.sub+'</small>':'')+'</div>')
+  $('sidebar').innerHTML=((a.k==='hoje'||a.k==='mural')?'':'<div class="sg"><span class="dot"></span>'+a.n+(a.sub?'<small>'+a.sub+'</small>':'')+'</div>')
     +a.it.map(function(t){var x=b[t[0]];return '<button title="'+t[1]+'" class="'+(VIEW===t[0]?'on':'')+'" onclick="go(\''+t[0]+'\')"><span class="ic">'+t[2]+'</span><span class="lb2">'+t[1]+'</span>'+(x?'<span class="badge"'+(x[0]?' style="background:'+x[0]+'"':'')+'>'+x[1]+'</span>':'')+'</button>'}).join('');
-  if(a.k!=='hoje')$('sidebar').insertAdjacentHTML('beforeend','<button class="colapsa" onclick="toggleMin()" title="Recolher/expandir menu"><span class="ic">◀</span><span class="lb2">Recolher menu</span></button>');
+  if(a.k!=='hoje'&&a.k!=='mural')$('sidebar').insertAdjacentHTML('beforeend','<button class="colapsa" onclick="toggleMin()" title="Recolher/expandir menu"><span class="ic">‹</span><span class="lb2">Recolher menu</span></button>');
   try{document.body.classList.toggle('side-min',localStorage.getItem('morphe_side_min')==='1')}catch(e){}
-  document.body.classList.toggle('sem-lateral',a.k==='hoje');
+  document.body.classList.toggle('sem-lateral',a.k==='hoje'||a.k==='mural');
   var hd=document.querySelector('header');if(hd)document.documentElement.style.setProperty('--hh',hd.offsetHeight+'px')}
 function toggleMin(){try{localStorage.setItem('morphe_side_min',localStorage.getItem('morphe_side_min')==='1'?'0':'1')}catch(e){}renderSidebar()}
 function novoMenu(e){e.stopPropagation();var m=$('novoMenu');if(m.style.display==='block'){m.style.display='none';return}
@@ -352,6 +360,7 @@ function needInt(titulo){
 function gravar(fn,arg,msg,done,fail){callSilent(fn,arg).then(function(r){intApply(r);toast(msg);if(done)done(r)}).catch(function(){if(fail)fail()})}
 
 /* ===================== Formatação ===================== */
+function n1(v){v=Math.round((+v||0)*10)/10;return String(v).replace('.',',')}
 function brl(n){return n==null||isNaN(n)?'—':'R$ '+Math.round(n).toLocaleString('pt-BR')}
 function pcX(x,dec){return x==null||isNaN(x)?'—':(x*100).toFixed(dec==null?0:dec)+'%'}
 function dBR(s){if(!s)return '';var p=String(s).slice(0,10).split('-');return p.length<3?s:p[2]+'/'+p[1]+'/'+p[0]}
@@ -478,7 +487,7 @@ function vSellin(){if(!needInt(NOME.sellin))return;var S=INT.sell,R=S.resumo;S={
   h+=pessoaBar();h+='<div class="kpis">'+kpiX('Baixa adesão',R.baixaAdesao,'vendem menos de 40% do que compraram',R.baixaAdesao?'var(--verm)':'')+kpiX('Hora de repor',R.repor,'cobertura abaixo de 1,5 semana',R.repor?'var(--laranja)':'')+kpiX('Sem dado de sell-out',R.semDado,'registre o giro para analisar')+'</div>';
   h+='<div class="muted" style="margin-bottom:8px">Sell-in = o que a Morphê vendeu ao ponto de venda. Sell-out = o que ele vendeu ao consumidor (você registra, é rápido). Estoque estimado = sell-in 90d − sell-out 90d (estimativa). Quando o produto está à venda e quase não gira, aparece como baixa adesão: abra a ficha para entender o porquê.</div>';
   h+='<div style="overflow:auto"><table><tr><th>Cliente</th><th>Sell-in 30/60/90d</th><th>Sell-out 30/60/90d</th><th>Giro (90d)</th><th>Estoque est.</th><th>Cobertura</th><th>Situação</th><th></th></tr>'+S.linhas.map(function(l){var q=esc(l.nome),a=ALERTA[l.alerta];
-    return '<tr><td><b>'+q+'</b><div class="muted">último pedido '+(dBR(l.ultimoPedido)||'—')+'</div></td><td>'+l.sellIn.d30+' / '+l.sellIn.d60+' / '+l.sellIn.d90+'</td><td>'+(l.alerta==='sem-dado'?'<span class="muted">—</span>':l.sellOut.d30+' / '+l.sellOut.d60+' / '+l.sellOut.d90)+'</td><td>'+(l.giro==null?'—':'<div class="bar" style="width:'+Math.min(100,Math.round(l.giro*100))+'px;min-width:6px;background:'+(l.giro<0.4?'var(--verm)':'var(--verde2)')+'"></div>'+Math.round(l.giro*100)+'%')+'</td><td>'+(l.alerta==='sem-dado'?'—':l.estoque+' un')+'</td><td>'+(l.coberturaSemanas==null?'—':l.coberturaSemanas+' sem')+'</td><td><span class="tag '+a[1]+'">'+a[0]+'</span>'+(l.ficha&&l.ficha.motivo?'<div class="muted">'+esc(l.ficha.motivo)+'</div>':'')+'</td>'
+    return '<tr><td><b>'+q+'</b><div class="muted">último pedido '+(dBR(l.ultimoPedido)||'—')+'</div></td><td>'+n1(l.sellIn.d30)+' / '+n1(l.sellIn.d60)+' / '+n1(l.sellIn.d90)+'</td><td>'+(l.alerta==='sem-dado'?'<span class="muted">—</span>':n1(l.sellOut.d30)+' / '+n1(l.sellOut.d60)+' / '+n1(l.sellOut.d90))+'</td><td>'+(l.giro==null?'—':'<div class="bar" style="width:'+Math.min(100,Math.round(l.giro*100))+'px;min-width:6px;background:'+(l.giro<0.4?'var(--verm)':'var(--verde2)')+'"></div>'+Math.round(l.giro*100)+'%')+'</td><td>'+(l.alerta==='sem-dado'?'—':n1(l.estoque)+' un')+'</td><td>'+(l.coberturaSemanas==null?'—':l.coberturaSemanas+' sem')+'</td><td><span class="tag '+a[1]+'">'+a[0]+'</span>'+(l.ficha&&l.ficha.motivo?'<div class="muted">'+esc(l.ficha.motivo)+'</div>':'')+'</td>'
       +'<td style="white-space:nowrap"><button class="btn sm" data-n="'+q+'" onclick="formSellout(this.dataset.n)">Sell-out</button> <button class="btn sm sec" data-n="'+q+'" onclick="formFicha(this.dataset.n)">Ficha</button></td></tr>'+(l.ficha&&l.ficha.motivo&&vocab(l.nome).acoes[l.ficha.motivo]?'<tr><td colspan="8" style="background:#FBF7EE;font-size:12px">'+vocab(l.nome).acoes[l.ficha.motivo].map(function(x){return '• '+esc(x)}).join('&nbsp;&nbsp;')+'</td></tr>':'')}).join('')+'</table></div>';
   $('main').innerHTML=h}
 
@@ -553,7 +562,7 @@ function renderNav(){renderNav0();metaChip()}
 // Ordem fixa: a cor segue a entidade, nunca o ranking.
 var VERDE='#00785A',LARANJA='#FA5528',AREIA='#DB853D',VIVA='#8DB01F',SOLO='#8A4B1A';
 var SERIES=['#FA5528','#8A4B1A','#8DB01F','#00785A','#DB853D'],OUTROS='#C9B78F';
-var COR_ETAPA={'Mapeado':'#BFDCCF','Contato feito':'#7FBBA3','Respondeu':'#3F9A78','Amostra enviada':'#00785A','Negociação':'#054A37'};
+var COR_ETAPA={'Mapeado':'#F1D7A6','Contato feito':'#DB853D','Respondeu':'#ABD032','Amostra enviada':'#006E51','Negociação':'#054A37'};
 var COR_SIT={'🔴 Atrasado':'#FA5528','🟠 Sem resposta':'#DB853D','🟡 Fazer FUP':'#8A4B1A','🔵 FUP da amostra':'#196454','🟢 Em dia':'#00785A','✅ FUP feito':'#8DB01F','⚪ Sem pedidos':OUTROS};
 var COR_REG={'SP Capital':'#00785A','Interior SP':'#8DB01F','Rio Grande do Sul':'#FA5528','Outros estados':OUTROS};
 var ORDEM_SKU=['Posta (emb. 2 un)','Cubos 200g','Cubos 300g','Desfiado 200g','Desfiado 300g'];
@@ -573,6 +582,12 @@ function donut(rows,o){o=o||{};rows=rows.filter(function(r){return r.v>0});var t
   var leg=rows.map(function(r){return '<div class="lg"><i style="background:'+r.c+'"></i><span class="ln">'+esc(r.l)+'</span><span class="lv">'+fm(r.v)+'</span><span class="lp">'+Math.round(r.v/tot*100)+'%</span></div>'}).join('');
   return '<div class="donut"><svg viewBox="0 0 140 140" class="dsvg">'+svg+'<text x="70" y="68" text-anchor="middle" class="dc1">'+esc(o.centro!=null?o.centro:fm(tot))+'</text><text x="70" y="84" text-anchor="middle" class="dc2">'+esc(o.rotulo||'')+'</text></svg><div class="dleg">'+leg+'</div></div>'}
 
+
+/* bolinha com o número em cada pico */
+function picos(V){var r=[];V.forEach(function(v,i){if(v<=0)return;var p=i>0?V[i-1]:-1,n=i<V.length-1?V[i+1]:-1;if(v>=p&&v>=n&&!(v===p&&v===n))r.push(i)});if(V.length&&V[V.length-1]>0&&r.indexOf(V.length-1)<0)r.push(V.length-1);return r}
+function pill(x,y,t,c,W,pr){t=String(t);var w=t.length*6.3+12,tx=Math.max(w/2+2,Math.min(W-pr-w/2+8,x)),ty=y-14;
+  return '<circle cx="'+x+'" cy="'+y+'" r="4.5" fill="'+c+'" stroke="#fff" stroke-width="2"/><rect x="'+(tx-w/2)+'" y="'+(ty-11)+'" width="'+w+'" height="16" rx="8" fill="'+c+'"/><text x="'+tx+'" y="'+(ty+1)+'" text-anchor="middle" class="gvp">'+esc(t)+'</text>'}
+
 /* linha + área (10%), eixo único, grade discreta, ponto final com anel, dica no hover */
 function lineArea(o){var L=o.labels,V=o.vals,n=L.length;if(!n)return '';var W=640,H=o.alt||210,pr=18,pt=16,pb=28,mx=niceMax(Math.max.apply(null,V.concat([0])));var fm=o.fmt||compact;
   var pl=Math.max(40,12+Math.max.apply(null,[0,1,2,3,4].map(function(i){return String(fm(mx*i/4)).length}))*6.6);
@@ -584,18 +599,33 @@ function lineArea(o){var L=o.labels,V=o.vals,n=L.length;if(!n)return '';var W=64
   var hits='';V.forEach(function(v,k){hits+='<rect x="'+(X(k)-step/2)+'" y="0" width="'+Math.max(step,8)+'" height="'+(H-pb)+'" fill="transparent" data-tip="'+esc(tt(L[k],(o.nome?esc(o.nome)+': ':'')+fm(v)))+'" onmousemove="tip(event,this)" onmouseleave="tipOff()"/>'});
   var last=n-1,c=o.cor||SERIES[0];
   return '<svg viewBox="0 0 '+W+' '+H+'" class="chart">'+g+lx+'<path d="'+area+'" fill="'+c+'" fill-opacity=".10"/><polyline points="'+pts.join(' ')+'" fill="none" stroke="'+c+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
-    +'<circle cx="'+X(last)+'" cy="'+Y(V[last])+'" r="4.5" fill="'+c+'" stroke="#fff" stroke-width="2"/><text x="'+(X(last)-8)+'" y="'+(Y(V[last])-10)+'" text-anchor="end" class="gv">'+fm(V[last])+'</text>'+hits+'</svg>'}
+    +picos(V).map(function(i){return pill(X(i),Y(V[i]),fm(V[i]),c,W,pr)}).join('')+hits+'</svg>'}
+
+
+/* receita (linha, eixo esquerdo) + volume (colunas, eixo direito) em um só gráfico */
+function combo(o){var L=o.labels,A=o.line,B=o.bars,n=L.length;if(!n)return '';var W=640,H=250,pl=58,pr=52,pt=28,pb=28,mxA=niceMax(Math.max.apply(null,A.vals.concat([0]))),mxB=niceMax(Math.max.apply(null,B.vals.concat([0])));
+  var band=(W-pl-pr)/n,bw=Math.min(26,band*0.55),X=function(i){return pl+band*i+band/2},YA=function(v){return pt+(1-v/mxA)*(H-pt-pb)},YB=function(v){return pt+(1-v/mxB)*(H-pt-pb)},g='',i;
+  for(i=0;i<=4;i++){var gy=pt+(1-i/4)*(H-pt-pb);g+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+gy+'" y2="'+gy+'" class="gl"/><text x="'+(pl-8)+'" y="'+(gy+4)+'" text-anchor="end" class="gt">'+A.fmt(mxA*i/4)+'</text><text x="'+(W-pr+8)+'" y="'+(gy+4)+'" class="gt" style="fill:#8A4B1A">'+B.fmt(mxB*i/4)+'</text>'}
+  var bars='',every=Math.ceil(n/8),pts=[];
+  B.vals.forEach(function(v,k){var x=X(k)-bw/2,y=YB(v),h=Math.max(0,H-pb-y),r=Math.min(4,h/2);
+    if(h>0)bars+='<path d="M'+x+','+(H-pb)+' V'+(y+r)+' Q'+x+','+y+' '+(x+r)+','+y+' H'+(x+bw-r)+' Q'+(x+bw)+','+y+' '+(x+bw)+','+(y+r)+' V'+(H-pb)+' Z" fill="'+B.cor+'" fill-opacity=".55"/>';
+    if(k%every===0||k===n-1)bars+='<text x="'+X(k)+'" y="'+(H-8)+'" text-anchor="middle" class="gt">'+esc(L[k])+'</text>'});
+  A.vals.forEach(function(v,k){pts.push(X(k)+','+YA(v))});
+  var hits='';L.forEach(function(l,k){hits+='<rect x="'+(X(k)-band/2)+'" y="0" width="'+band+'" height="'+(H-pb)+'" fill="transparent" data-tip="'+esc(tt(l,'Receita: '+A.fmt(A.vals[k])+'<br>Volume: '+B.fmt(B.vals[k])))+'" onmousemove="tip(event,this)" onmouseleave="tipOff()"/>'});
+  var lg='<div class="lgd"><span><i style="background:'+A.cor+'"></i>Receita (R$, eixo esquerdo)</span><span><i style="background:'+B.cor+';opacity:.6"></i>Volume (kg, eixo direito)</span></div>';
+  return lg+'<svg viewBox="0 0 '+W+' '+H+'" class="chart">'+g+bars+'<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+A.cor+'" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>'
+    +picos(A.vals).map(function(k){return pill(X(k),YA(A.vals[k]),A.fmt(A.vals[k]),A.cor,W,pr)}).join('')+hits+'</svg>'}
 
 /* colunas: até 24px, topo arredondado 4px, base reta; rótulo só no maior e no último */
 function colunas(o){var L=o.labels,V=o.vals,n=L.length;if(!n)return '';var W=640,H=o.alt||210,pr=18,pt=18,pb=28,mx=niceMax(Math.max.apply(null,V.concat([0])));var fm=o.fmt||compact,c=o.cor||SERIES[2];
   var pl=Math.max(40,12+Math.max.apply(null,[0,1,2,3,4].map(function(i){return String(fm(mx*i/4)).length}))*6.6);
   var band=(W-pl-pr)/n,bw=Math.min(24,band*0.6),Y=function(v){return pt+(1-v/mx)*(H-pt-pb)},g='',i;
   for(i=0;i<=4;i++){var gv=mx*i/4,gy=Y(gv);g+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+gy+'" y2="'+gy+'" class="gl"/><text x="'+(pl-8)+'" y="'+(gy+4)+'" text-anchor="end" class="gt">'+fm(gv)+'</text>'}
-  var mxi=V.indexOf(Math.max.apply(null,V)),bars='',every=Math.ceil(n/8);
+  var rot={},bars='',every=Math.ceil(n/8);(n<=12?V.map(function(_,i){return i}):picos(V)).forEach(function(i){rot[i]=1});
   V.forEach(function(v,k){var x=pl+band*k+(band-bw)/2,y=Y(v),h=Math.max(0,H-pb-y),r=Math.min(4,h/2);
     bars+=(h>0?'<path d="M'+x+','+(H-pb)+' V'+(y+r)+' Q'+x+','+y+' '+(x+r)+','+y+' H'+(x+bw-r)+' Q'+(x+bw)+','+y+' '+(x+bw)+','+(y+r)+' V'+(H-pb)+' Z" fill="'+c+'"/>':'')
       +'<rect x="'+(pl+band*k)+'" y="0" width="'+band+'" height="'+(H-pb)+'" fill="transparent" data-tip="'+esc(tt(L[k],fm(v)))+'" onmousemove="tip(event,this)" onmouseleave="tipOff()"/>'
-      +((k===mxi||k===n-1)&&v>0?'<text x="'+(x+bw/2)+'" y="'+(y-6)+'" text-anchor="middle" class="gv">'+fm(v)+'</text>':'')
+      +(rot[k]&&v>0?pill(x+bw/2,y,fm(v),c,W,pr):'')
       +((k%every===0||k===n-1)?'<text x="'+(x+bw/2)+'" y="'+(H-8)+'" text-anchor="middle" class="gt">'+esc(L[k])+'</text>':'')});
   return '<svg viewBox="0 0 '+W+' '+H+'" class="chart">'+g+bars+'</svg>'}
 
@@ -636,6 +666,7 @@ function projRecompra(){var H=INT.hoje,hd=Date.UTC(+H.slice(0,4),+H.slice(5,7)-1
   INT.carteira.ativos.forEach(function(a){if(!a.proxRecompra||!a.nPedidos)return;var p=a.proxRecompra,dp=Date.UTC(+p.slice(0,4),+p.slice(5,7)-1,+p.slice(8,10))/864e5,w=Math.max(0,Math.floor((dp-hd)/7));if(w>7)return;sem[w]+=a.ticketMedio*Math.max(0.2,0.9-(a.score||0)/100)});
   var lab=sem.map(function(_,i){if(i===0)return 'Agora';var d=new Date((hd+i*7)*864e5);return ('0'+d.getUTCDate()).slice(-2)+'/'+('0'+(d.getUTCMonth()+1)).slice(-2)});
   return {labels:lab,vals:sem.map(function(v){return Math.round(v)})}}
+function totTag(t){return '<div class="tot-tag">'+esc(t)+'</div>'}
 function chead(t,sub,extra){return '<div class="ch"><div><h3>'+t+'</h3>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>'+(extra||'')+'</div>'}
 function seg(opts,cur,fn){return '<div class="seg2">'+opts.map(function(o){return '<button class="'+(o[0]===cur?'on':'')+'" onclick="'+fn+'('+o[0]+')">'+o[1]+'</button>'}).join('')+'</div>'}
 function setSem(n){F.pSem=n;vPainel()}
@@ -651,22 +682,22 @@ function vPainel(){if(!needInt(NOME.painel))return;var P=INT.painel,K=P.kpis,C=I
   h+=metaHero();
   h+='<div class="sech">⚡ Ação imediata</div><div class="kpis">'+kpiX('Clientes ativos',K.clientesAtivos,'carteira com pedido ou cadastro ativo')+kpiX('🔴 Atrasados',K.atrasados,'passaram da data prevista de recompra')+kpiX('FUP agora',K.fupAgora,'🟡 fazer · 🟠 sem resposta · 🔵 amostra')+kpiX('Taxa de recompra',pcX(K.taxaRecompra),'clientes com 2+ pedidos')+'</div>';
   h+='<div class="sech">💰 Resultados · últimos 30 dias</div><div class="kpis">'+kpiX('Receita 30d',brl(K.receita30),delta(K.receita30,K.receitaPrev30))+kpiX('Kg 30d',String(K.kg30).replace('.',','),delta(K.kg30,K.kgPrev30))+kpiX('Pedidos 30d',K.pedidos30,delta(CM.pedidos.now,CM.pedidos.prev))+kpiX('Ticket médio 30d',brl(K.pedidos30?K.receita30/K.pedidos30:0),'margem 90d: '+(K.margem90==null?'—':K.margem90+'%'))+'</div>';
-  h+='<div class="g g21"><div class="card">'+chead('Receita por semana','R$ · '+nSem+' semanas',seg([[4,'4 sem'],[8,'8 sem'],[12,'12 sem']],nSem,'setSem'))+lineArea({labels:sem.map(function(s){return s.semana.slice(8,10)+'/'+s.semana.slice(5,7)}),vals:sem.map(function(s){return s.receita}),fmt:brl0,cor:VERDE,nome:'Receita'})+'</div>'
+  h+='<div class="g g21"><div class="card">'+chead('Receita e volume por semana',nSem+' semanas',seg([[4,'4 sem'],[8,'8 sem'],[12,'12 sem']],nSem,'setSem'))+combo({labels:sem.map(function(s){return s.semana.slice(8,10)+'/'+s.semana.slice(5,7)}),line:{vals:sem.map(function(s){return s.receita}),fmt:brl0,cor:VERDE},bars:{vals:sem.map(function(s){return s.kg}),fmt:function(v){return compact(v)+' kg'},cor:AREIA}})+'</div>'
     +'<div class="card">'+chead('Últimos 30 dias vs. 30 anteriores','cinza = antes · cor = agora')+cmpRow('Receita',CM.receita,brl0)+cmpRow('Volume',CM.kg,function(v){return String(v).replace('.',',')+' kg'})+cmpRow('Nº de pedidos',CM.pedidos,function(v){return v})+cmpRow('Margem',CM.margem,brl0)+'</div></div>';
-  h+='<div class="g g21"><div class="card">'+chead('Volume por semana','kg vendidos')+colunas({labels:sem.map(function(s){return s.semana.slice(8,10)+'/'+s.semana.slice(5,7)}),vals:sem.map(function(s){return s.kg}),fmt:function(v){return compact(v)+' kg'},cor:AREIA})+'</div>'
-    +'<div class="card">'+chead('Situação da carteira','clientes por status de FUP')+donut(sits,{centro:String(K.clientesAtivos),rotulo:'clientes',fmt:function(v){return v}})+'</div></div>';
-  h+='<div class="sech">🧭 Saúde da carteira</div><div class="stats">'
+  h+='<div class="g g12"><div class="card">'+chead('Situação da carteira','clientes por status de FUP',totTag(K.clientesAtivos+' clientes'))+donut(sits,{centro:'',fmt:function(v){return v}})+'</div>'
+    +'<div class="card">'+chead('SKU vendidos','kg acumulados',totTag(compact(prod.reduce(function(s,x){return s+x.v},0))+' kg'))+donut(prod,{centro:'',fmt:function(v){return compact(v)+' kg'}})+'</div></div>';
+  h+='<div class="sech">Pós-venda</div><div class="stats">'
     +[['Preço médio por kg',S.precoKg==null?'—':'R$ '+String(S.precoKg).replace('.',',')],['Concentração · maior cliente',P.concentracao.top1==null?'—':pcX(P.concentracao.top1)+'<small>'+esc(P.concentracao.top1Nome)+'</small>'],['Ciclo médio de recompra',S.cicloMedio==null?'—':S.cicloMedio+' dias'],['Conversão de amostras',C.taxaConversao==null?'—':pcX(C.taxaConversao)+'<small>'+C.convertidos+' de '+C.amostrasTotal+'</small>'],
       ['Receita acumulada',brl(S.receitaAcum)],['Ticket médio histórico',brl(S.ticketHistorico)],['Lead time médio',S.leadTime==null?'—':String(S.leadTime).replace('.',',')+' dias'],['Compraram nos últimos 30d',S.compraram30+' clientes'],
       ['Margem acumulada',brl(S.margemAcum)],['Dias até a 2ª compra',S.diasSegundaCompra==null?'—':S.diasSegundaCompra+' dias'],['Sucesso do follow-up',S.sucessoFup==null?'—':pcX(S.sucessoFup)+'<small>comprou ou vai comprar</small>'],['Clientes em queda',String(S.clientesQueda)]]
       .map(function(x){return '<div class="stat"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>'}).join('')+'</div>';
   h+='<div class="g g21"><div class="card">'+chead('Projeção de recompra','R$ esperados por semana (próximas 8 semanas)')+lineArea({labels:pj.labels,vals:pj.vals,fmt:brl0,cor:LARANJA,nome:'Recompra esperada'})+'<div class="muted" style="font-size:12px">Data prevista de cada cliente × ticket médio × probabilidade (menor quando o risco é alto). Atrasados entram em "Agora".</div></div>'
-    +'<div class="card">'+chead('Pipeline de prospecção','leads por etapa agora')+donut(funil,{centro:String(funil.reduce(function(s,x){return s+x.v},0)),rotulo:'leads',fmt:function(v){return v}})+'</div></div>';
-  h+='<div class="g g12"><div class="card">'+chead('🏭 Previsão de demanda · próximos 14 dias','para a produção · '+P.previsto14.clientes+' clientes com recompra na janela')+'<table class="mini"><tr><th>SKU</th><th>Unidades</th><th>Kg</th></tr>'+P.previstoSKU.map(function(x){return '<tr><td>'+esc(x.sku)+'</td><td>'+x.un+'</td><td>'+String(x.kg).replace('.',',')+'</td></tr>'}).join('')+'<tr class="tot"><td>Total</td><td>'+P.previstoSKU.reduce(function(s,x){return s+x.un},0)+'</td><td>'+String(Math.round(P.previstoSKU.reduce(function(s,x){return s+x.kg},0)*10)/10).replace('.',',')+'</td></tr></table></div>'
-    +'<div class="card">'+chead('SKU vendidos','kg acumulados')+donut(prod,{centro:compact(prod.reduce(function(s,x){return s+x.v},0))+' kg',rotulo:'vendidos',fmt:function(v){return compact(v)+' kg'}})+'</div></div>';
-  h+='<div class="g g3"><div class="card">'+chead('Receita por região','R$ acumulado')+donut(regs,{fmt:brl0,centro:'R$ '+compact(regs.reduce(function(s,x){return s+x.v},0)),rotulo:'receita'})+'</div><div class="card">'+chead('Mix de transporte','nº de pedidos')+barsX(P.transportes.slice(0,7).map(function(x){return [x.transporte,x.pedidos]}),function(v){return v},AREIA)+'</div><div class="card">'+chead('Motivos de queda','clientes por motivo')+(mot.length?donut(mot,{fmt:function(v){return v+' cliente'+(v>1?'s':'')},centro:String(mot.reduce(function(s,x){return s+x.v},0)),rotulo:'clientes'}):'<div class="muted">Nenhum motivo registrado.</div>')+'</div></div>';
-  h+='<div class="g g21"><div class="card">'+chead('🏆 Ranking de clientes','receita acumulada, tendência e participação')+'<div style="overflow:auto"><table class="mini"><tr><th>Cliente</th><th>Pedidos</th><th>Kg</th><th>Receita</th><th>Ticket</th><th>Margem</th><th>Ritmo</th><th>Participação</th></tr>'+P.ranking.map(function(r){var ic=r.ritmo==='desacelerando'?'🐢 desacelerando':r.ritmo==='acelerando'?'🚀 acelerando':r.ritmo?'— estável':'—';return '<tr><td><b>'+esc(r.nome)+'</b></td><td>'+r.pedidos+'</td><td>'+String(r.kg).replace('.',',')+'</td><td>'+brl(r.receita)+'</td><td>'+brl(r.ticket)+'</td><td>'+(r.margemPct!=null?r.margemPct+'%':'—')+'</td><td>'+ic+'</td><td><div class="pbar"><i style="width:'+Math.round(r.parte*100)+'%"></i><span>'+Math.round(r.parte*100)+'%</span></div></td></tr>'}).join('')+'</table></div></div>'
-    +'<div class="card">'+chead('Margem por cliente','% sobre a receita')+barsX(P.margemPorCliente.filter(function(x){return x.receita>0}).map(function(x){return [x.nome,x.margemPct||0]}),function(v){return v+'%'},VERDE)+'</div></div>';
+    +'<div class="card">'+chead('Funil de prospecção','leads por etapa agora',totTag(funil.reduce(function(s,x){return s+x.v},0)+' leads'))+donut(funil,{centro:'',fmt:function(v){return v}})+'</div></div>';
+  h+='<div class="g g12"><div class="card">'+chead('Previsão de demanda · próximos 14 dias','para a produção · '+P.previsto14.clientes+' clientes que compraram no último mês, repetindo o último pedido de cada um')+'<table class="mini"><tr><th>SKU</th><th>Unidades</th><th>Kg</th></tr>'+P.previstoSKU.map(function(x){return '<tr><td>'+esc(x.sku)+'</td><td>'+x.un+'</td><td>'+String(x.kg).replace('.',',')+'</td></tr>'}).join('')+'<tr class="tot"><td>Total</td><td>'+P.previstoSKU.reduce(function(s,x){return s+x.un},0)+'</td><td>'+String(Math.round(P.previstoSKU.reduce(function(s,x){return s+x.kg},0)*10)/10).replace('.',',')+'</td></tr></table></div>'
+    +'<div class="card">'+chead('Receita por região','R$ acumulado',totTag('R$ '+compact(regs.reduce(function(s,x){return s+x.v},0))))+donut(regs,{fmt:brl0,centro:''})+'</div></div>';
+  h+='<div class="g g12"><div class="card">'+chead('Motivos de queda','clientes por motivo',totTag(mot.reduce(function(s,x){return s+x.v},0)+' clientes'))+(mot.length?donut(mot,{fmt:function(v){return v+' cliente'+(v>1?'s':'')},centro:''}):'<div class="muted">Nenhum motivo registrado.</div>')+'</div>'+icpResumoCard()+'</div>';
+  h+='<div class="card" style="margin-top:16px">'+chead('🏆 Ranking de clientes','receita acumulada, tendência e participação')+'<div style="overflow:auto"><table class="mini"><tr><th>Cliente</th><th>Pedidos</th><th>Kg</th><th>Receita</th><th>Ticket</th><th>Margem</th><th>Ritmo</th><th>Participação</th></tr>'+P.ranking.map(function(r){var ic=r.ritmo==='desacelerando'?'🐢 desacelerando':r.ritmo==='acelerando'?'🚀 acelerando':r.ritmo?'— estável':'—';return '<tr><td><b>'+esc(r.nome)+'</b></td><td>'+r.pedidos+'</td><td>'+String(r.kg).replace('.',',')+'</td><td>'+brl(r.receita)+'</td><td>'+brl(r.ticket)+'</td><td>'+(r.margemPct!=null?r.margemPct+'%':'—')+'</td><td>'+ic+'</td><td><div class="pbar"><i style="width:'+Math.round(r.parte*100)+'%"></i><span>'+Math.round(r.parte*100)+'%</span></div></td></tr>'}).join('')+'</table></div></div>';
+
   h+='<div class="card" style="margin-top:16px">'+chead('⚡ Ação imediata · quem contatar','ordenado por urgência')+(P.acaoImediata.length?'<div style="overflow:auto"><table class="mini"><tr><th>Cliente</th><th>Situação</th><th>Próxima compra</th><th>Último FUP</th><th></th></tr>'+P.acaoImediata.slice(0,12).map(function(a){var q=esc(a.nome);return '<tr><td><b>'+q+'</b></td><td>'+tagSit(a.situacao)+'</td><td>'+(a.prox?dBR(a.prox)+(a.dias>0?' <span class="muted">(+'+a.dias+'d)</span>':''):(a.dias!=null?'há '+a.dias+' dias':''))+'</td><td>'+(a.ultimoFup?esc(a.ultimoFup.resultado||'(sem resultado)')+(a.ultimoFup.obs?'<div class="muted">'+esc(a.ultimoFup.obs)+'</div>':''):'<span class="muted">—</span>')+'</td><td><button class="btn sm" data-n="'+q+'" data-t="'+(a.tipo==='amostra'?'Amostra':'Recompra')+'" onclick="formFollowup(this.dataset.n,this.dataset.t)">Registrar FUP</button></td></tr>'}).join('')+'</table></div>':'<div class="muted">Nada pendente 🎉</div>')+'</div>';
   $('main').innerHTML=h}
 
@@ -728,34 +759,43 @@ var AUT_COR=['#006E51','#FA5528','#DB853D','#196454','#8A4B1A','#8DB01F'];
 function corAutor(n){var i=D.users.map(function(u){return u.nome}).indexOf(n);return AUT_COR[(i<0?0:i)%AUT_COR.length]}
 function diaLabel(iso){var x=d(iso);if(!x)return '';var t=today(),df=Math.round((t-new Date(x.getFullYear(),x.getMonth(),x.getDate()))/864e5);if(df===0)return 'Hoje';if(df===1)return 'Ontem';return ['domingo','segunda','terça','quarta','quinta','sexta','sábado'][x.getDay()]+', '+fmt(iso)}
 function htmlTxt(t){return esc(t).replace(/@([A-Za-zÀ-ú]+)/g,'<span class="mention">@$1</span>')}
+/* comemorações de clientes: primeiro pedido, recompras, marcos de pedidos e amostras entregues (últimos 90 dias) */
+function eventosCli(){if(!INT)return [];var out=[],lim=today().getTime()-90*864e5;
+  INT.carteira.ativos.forEach(function(a){var n=a.nPedidos;(a.historico||[]).forEach(function(p,i){var dt=d(p.data);if(!dt||dt.getTime()<lim)return;var idx=n-i,kg=String(p.kg).replace('.',','),tipo='Pedido',tag='Recompra',txt=a.nome+' recomprou (pedido '+idx+'): '+brl(p.valor)+' · '+kg+' kg';
+    if(idx===1){tipo='Marco';tag='Novo cliente';txt=a.nome+' fez o primeiro pedido: '+brl(p.valor)+' · '+kg+' kg'}
+    else if([5,10,20,30,50].indexOf(idx)>=0){tipo='Marco';tag=idx+'º pedido';txt=a.nome+' chegou ao '+idx+'º pedido ('+brl(p.valor)+')'}
+    out.push({ID:'cli'+a.nome+p.data,Data:p.data+'T12:00:00',Autor:'Clientes',Tipo:tipo,Texto:txt,Tag:tag,Estabelecimento:a.nome,'Lead ID':''})})});
+  INT.carteira.amostras.forEach(function(s){if(!s.entrega)return;var dt=d(s.entrega);if(!dt||dt.getTime()<lim)return;out.push({ID:'am'+s.cliente+s.entrega,Data:s.entrega+'T12:00:00',Autor:'Clientes',Tipo:'Amostra',Tag:'Amostra entregue',Texto:'Amostra de '+s.cliente+' entregue'+(s.skus?' ('+s.skus+')':'')+(s.converteu?' e já virou cliente':''),Estabelecimento:s.cliente,'Lead ID':''})});
+  return out}
+function ehMarco(a){return a.Tipo==='Marco'||(a.Tipo==='Etapa'&&/→ Ganho/.test(a.Texto||''))}
 function muralItem(a){var cc=corAutor(a.Autor),eu=a.Autor===ME,tipo=a.Tipo,ganho=tipo==='Etapa'&&/→ Ganho/.test(a.Texto||''),
-  chip=ganho?'<span class="tipo-chip tp-marco">🎉 Novo cliente</span>':tipo==='Aviso'?'<span class="tipo-chip tp-aviso">Movimento em lead</span>':tipo==='Comentário'&&!a['Lead ID']?'<span class="tipo-chip tp-post">Recado</span>':tipo==='Etapa'?'<span class="tipo-chip tp-etapa">Etapa</span>':'<span class="tipo-chip tp-etapa">'+esc(tipo)+'</span>',
+  marco=tipo==='Marco',chip=marco?'<span class="tipo-chip tp-marco">'+esc(a.Tag)+'</span>':(tipo==='Pedido'||tipo==='Amostra')?'<span class="tipo-chip tp-etapa">'+esc(a.Tag)+'</span>':ganho?'<span class="tipo-chip tp-marco">Novo cliente</span>':tipo==='Aviso'?'<span class="tipo-chip tp-aviso">Movimento em lead</span>':tipo==='Comentário'&&!a['Lead ID']?'<span class="tipo-chip tp-post">Recado</span>':tipo==='Etapa'?'<span class="tipo-chip tp-etapa">Etapa</span>':'<span class="tipo-chip tp-etapa">'+esc(tipo)+'</span>',
   lead=a.Estabelecimento?(a['Lead ID']?'<a href="#" onclick="openLead(\''+a['Lead ID']+'\');return false" style="color:var(--selva);font-weight:700">'+esc(a.Estabelecimento)+'</a>':'<b>'+esc(a.Estabelecimento)+'</b>'):'';
-  var corpo=ganho?'<span class="big" style="font-size:20px">'+esc(a.Estabelecimento)+' virou cliente!</span>':htmlTxt(a.Texto||'')+(a.Resultado?' · <b>'+esc(a.Resultado)+'</b>':'');
-  return '<div class="mc'+(eu?' eu':'')+(ganho?' marco':'')+(tipo==='Aviso'?' aviso':'')+'" style="--cc:'+cc+'"><div class="av2">'+esc(ini_(a.Autor))+'</div><div class="mb2"><div class="mh2"><b>'+esc(a.Autor||'Sistema')+'</b>'+chip+'<span class="muted">'+(fmtH(a.Data)||'')+'</span></div>'
-    +(lead&&!ganho&&tipo!=='Aviso'?'<div class="muted" style="font-size:12px">no lead '+lead+'</div>':'')+'<div class="mt">'+corpo+'</div></div></div>'}
+  var corpo=marco?'<span class="big" style="font-size:18px">'+esc(a.Texto)+'</span>':ganho?'<span class="big" style="font-size:20px">'+esc(a.Estabelecimento)+' virou cliente!</span>':htmlTxt(a.Texto||'')+(a.Resultado?' · <b>'+esc(a.Resultado)+'</b>':'');
+  return '<div class="mc'+(eu?' eu':'')+((ganho||marco)?' marco':'')+(tipo==='Aviso'?' aviso':'')+'" style="--cc:'+cc+'"><div class="av2">'+esc(ini_(a.Autor))+'</div><div class="mb2"><div class="mh2"><b>'+esc(a.Autor||'Sistema')+'</b>'+chip+'<span class="muted">'+(fmtH(a.Data)||'')+'</span></div>'
+    +(lead&&!ganho&&!marco&&tipo!=='Aviso'&&tipo!=='Pedido'&&tipo!=='Amostra'?'<div class="muted" style="font-size:12px">no lead '+lead+'</div>':'')+'<div class="mt">'+corpo+'</div></div></div>'}
 function vMural(){var f=window._mf||'tudo',pe=window._mp||'';
-  var all=D.atividades.slice().sort(function(a,b){return a.Data<b.Data?1:-1}).filter(function(a){return a.Tipo!=='Sistema'||/transferido/.test(a.Texto||'')});
+  var all=D.atividades.concat(eventosCli()).sort(function(a,b){return a.Data<b.Data?1:-1}).filter(function(a){return a.Tipo!=='Sistema'||/transferido/.test(a.Texto||'')});
   var arr=all.filter(function(a){
     if(pe&&a.Autor!==pe)return false;
     if(f==='recados')return a.Tipo==='Comentário'&&!a['Lead ID'];
     if(f==='pipeline')return ['Contato','Etapa','Tarefa'].indexOf(a.Tipo)>=0||(a.Tipo==='Comentário'&&a['Lead ID']);
     if(f==='avisos')return a.Tipo==='Aviso'&&String(a['Menções']||'').split(',').map(function(x){return x.trim()}).indexOf(ME)>=0;
-    if(f==='marcos')return a.Tipo==='Etapa'&&/→ Ganho/.test(a.Texto||'');
+    if(f==='marcos')return ehMarco(a);
     return true}).slice(0,150);
   var t7=today().getTime()-7*864e5,rank=D.users.map(function(u){return {n:u.nome,c:D.atividades.filter(function(a){return a.Autor===u.nome&&a.Tipo==='Contato'&&d(a.Data)>=t7}).length}}).sort(function(a,b){return b.c-a.c}),mxr=Math.max.apply(null,rank.map(function(r){return r.c}).concat([1]));
-  var marcos=all.filter(function(a){return a.Tipo==='Etapa'&&/→ Ganho/.test(a.Texto||'')}).slice(0,4);
+  var marcos=all.filter(ehMarco).slice(0,6);
   var meus=all.filter(function(a){return a.Tipo==='Aviso'&&String(a['Menções']||'').split(',').map(function(x){return x.trim()}).indexOf(ME)>=0}).slice(0,4);
-  var tabs=[['tudo','Tudo'],['recados','Recados'],['pipeline','Pipeline'],['marcos','🎉 Conquistas'],['avisos','🔔 Para mim']];
-  var h='<div class="mural-hero"><div class="blob"></div><div class="blob2"></div><div class="blob3"></div><h2>Mural da equipe</h2><p>Recados, conquistas e o movimento do pipeline em um só lugar. Use @Nome para avisar alguém.</p></div>';
+  var tabs=[['tudo','Tudo'],['recados','Recados'],['pipeline','Funil'],['marcos','Conquistas'],['avisos','Para mim']];
+  var h='<div class="mural-hero"><div class="blob"></div><div class="blob2"></div><div class="blob3"></div><h2>Mural da equipe</h2><p>Recados, conquistas e o movimento do funil em um só lugar. Use @Nome para avisar alguém.</p></div>';
   h+='<div class="mural-wrap"><div><div class="card" style="margin-bottom:6px"><div class="composer"><div class="me-av" style="width:44px;height:44px;font-size:18px;border-radius:13px">'+esc(ini_(ME))+'</div><div style="flex:1"><textarea id="mtxt" placeholder="Compartilhe um recado, uma conquista ou avise alguém com @Nome…"></textarea><div class="mchips">'
-    +D.users.filter(function(u){return u.nome!==ME}).map(function(u){return '<button class="mchip" onclick="mtxtAdd(\'@'+u.nome+' \')">@'+esc(u.nome)+'</button>'}).join('')+'<button class="mchip" onclick="mtxtAdd(\'🎉 \')">🎉 Comemorar</button><button class="mchip" onclick="mtxtAdd(\'💡 Dica: \')">💡 Dica</button></div></div><button class="btn lar" onclick="postMural()">Publicar</button></div></div>'
+    +D.users.filter(function(u){return u.nome!==ME}).map(function(u){return '<button class="mchip" onclick="mtxtAdd(\'@'+u.nome+' \')">@'+esc(u.nome)+'</button>'}).join('')+'<button class="mchip" onclick="mtxtAdd(\'Parabéns! \')">Comemorar</button><button class="mchip" onclick="mtxtAdd(\'Dica: \')">Dica</button></div></div><button class="btn lar" onclick="postMural()">Publicar</button></div></div>'
     +'<div style="display:flex;gap:12px;align-items:center;margin:14px 0 4px;flex-wrap:wrap"><div class="seg2">'+tabs.map(function(t){return '<button class="'+(f===t[0]?'on':'')+'" onclick="window._mf=\''+t[0]+'\';vMural()">'+t[1]+'</button>'}).join('')+'</div><select onchange="window._mp=this.value;vMural()" style="font:600 12px var(--oper);padding:7px 10px;border-radius:10px;border:1px solid #D9C9A8"><option value="">👥 Toda a equipe</option>'+D.users.map(function(u){return '<option'+(pe===u.nome?' selected':'')+' value="'+esc(u.nome)+'">'+esc(u.nome)+'</option>'}).join('')+'</select><span class="muted" style="margin-left:auto;font-size:12px">'+arr.length+' registros</span></div>';
   var last='';arr.forEach(function(a){var dl=diaLabel(a.Data);if(dl!==last){h+='<div class="dia">'+esc(dl)+'</div>';last=dl}h+=muralItem(a)});
   if(!arr.length)h+='<div class="card" style="margin-top:12px">Nada por aqui ainda. Publique o primeiro recado!</div>';
   h+='</div><div>'
     +'<div class="card" style="margin-bottom:14px"><h3>🏁 Contatos na semana</h3>'+rank.map(function(r,i){return '<div class="rank"><span class="n">'+(i+1)+'º</span><div class="av2" style="width:30px;height:30px;border-radius:9px;background:'+corAutor(r.n)+';color:#fff;font:700 11px var(--texto);display:flex;align-items:center;justify-content:center">'+esc(ini_(r.n))+'</div><div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(r.n)+'</div><div class="track" style="height:8px;margin-top:3px"><div class="fill" style="height:8px;width:'+Math.round(r.c/mxr*100)+'%;background:'+corAutor(r.n)+'"></div></div></div><b>'+r.c+'</b></div>'}).join('')+'</div>'
-    +'<div class="card" style="margin-bottom:14px"><h3>🎉 Conquistas recentes</h3>'+(marcos.length?marcos.map(function(a){return '<div class="rank"><span style="font-size:18px">🌱</span><div style="flex:1"><div style="font-size:13px;font-weight:700">'+esc(a.Estabelecimento)+'</div><div class="muted" style="font-size:11.5px">'+esc(a.Autor)+' · '+fmt(a.Data)+'</div></div></div>'}).join(''):'<div class="muted">Ainda sem conquistas por aqui.</div>')+'</div>'
+    +'<div class="card" style="margin-bottom:14px"><h3>🎉 Conquistas recentes</h3>'+(marcos.length?marcos.map(function(a){return '<div class="rank"><div style="flex:1"><div style="font-size:13px;font-weight:700">'+esc(a.Estabelecimento)+'</div><div class="muted" style="font-size:11.5px">'+esc(a.Tag||'Novo cliente')+' · '+fmt(a.Data)+'</div></div></div>'}).join(''):'<div class="muted">Ainda sem conquistas por aqui.</div>')+'</div>'
     +'<div class="card"><h3>🔔 Movimento nos meus leads</h3>'+(meus.length?meus.map(function(a){return '<div class="rank" style="align-items:flex-start"><span style="font-size:16px">📌</span><div style="font-size:12.5px;line-height:1.4">'+esc(a.Texto)+'<div class="muted" style="font-size:11px">'+(fmtH(a.Data)||'')+'</div></div></div>'}).join(''):'<div class="muted">Ninguém mexeu nos seus leads.</div>')+'</div></div></div>';
   $('main').innerHTML=h}
 function mtxtAdd(t){var el=$('mtxt');el.value=(el.value?el.value+' ':'')+t;el.focus()}
@@ -776,8 +816,8 @@ function leadDe(nome){var k=nrmJs(nome);return D.leads.filter(function(l){return
 function donoCliente(nome){var l=leadDe(nome);if(l&&l['Responsável'])return l['Responsável'];
   var c=INT&&INT.clientes.filter(function(x){return nrmJs(x.nome)===nrmJs(nome)})[0],m=c&&String(c.obs||'').match(/resp\.?\s*:\s*([A-Za-zÀ-ú]+)/i);return m?m[1]:''}
 function okResp(dono){if(!F.resp)return true;if(F.resp==='__sem')return !dono;return dono===F.resp}
-function pessoaBar(){var ps=[['','Todos']].concat(D.users.map(function(u){return [u.nome,u.nome]})).concat([['__sem','Sem dono']]);
-  return '<div class="seg2" style="display:inline-flex;margin-bottom:14px;flex-wrap:wrap">'+ps.map(function(p){return '<button class="'+((F.resp||'')===p[0]?'on':'')+'" data-p="'+esc(p[0])+'" onclick="F.resp=this.dataset.p;render()">'+(p[0]&&p[0]!=='__sem'&&p[0]===ME?'👤 Eu':esc(p[1]))+'</button>'}).join('')+'</div>'}
+function pessoaBar(){var ps=[['','Todos']].concat(D.users.map(function(u){return [u.nome,u.nome]}));
+  return '<div class="seg2" style="display:inline-flex;margin-bottom:14px;flex-wrap:wrap">'+ps.map(function(p){return '<button class="'+((F.resp||'')===p[0]?'on':'')+'" data-p="'+esc(p[0])+'" onclick="F.resp=this.dataset.p;render()">'+(p[0]&&p[0]!=='__sem'&&p[0]===ME?'Eu':esc(p[1]))+'</button>'}).join('')+'</div>'}
 function amostrasEntregues(){var s={};if(INT)INT.carteira.amostras.forEach(function(a){if(a.entregue)s[nrmJs(a.cliente)]=1});return s}
 function amostrasEnt(L){var s=amostrasEntregues();return L.filter(function(l){return s[nrmJs(l.Estabelecimento)]}).length}
 
@@ -835,7 +875,8 @@ function vDash(){var all=D.leads,allA=D.atividades,mapa=cidadeMapa(all.map(funct
   var ls=all.map(function(l){return Object.assign({},l,{Cidade:mapa(l.Cidade)})}).filter(function(l){return okResp(l['Responsável'])}),ids={};ls.forEach(function(l){ids[l.ID]=1});
   D.leads=ls;D.atividades=allA.filter(function(a){return !a['Lead ID']||ids[a['Lead ID']]});
   try{vDashBase()}finally{D.leads=all;D.atividades=allA}
-  $('main').insertAdjacentHTML('afterbegin',pessoaBar())}
+  $('main').insertAdjacentHTML('afterbegin',pessoaBar());
+  var n=semCidadeLeads().length;if(n)[].slice.call(document.querySelectorAll('#main .card')).forEach(function(c){var t=c.querySelector('h3');if(t&&/Top cidades/.test(t.textContent))c.insertAdjacentHTML('beforeend','<div style="margin-top:8px"><button class="btn sm sec" onclick="completarCidades()">Completar cidades ('+n+' leads sem cidade)</button></div>')})}
 
 /* ===================== Prospecção e ICP (pessoal) + mercado ===================== */
 var MERCADO={tam:{v:60000,min:12500,l:'Restaurantes de salão e fornecimento de refeições na cidade de SP',f:'CNPJs ativos (LeadJet / Receita Federal), 2026; mínimo de 12.500 restaurantes pelo SinHoRes'},
@@ -851,15 +892,15 @@ function mercadoCard(){var M=MERCADO,tk=INT?INT.previsao.ticketMensalPorCliente:
   var h='<h3 style="margin-top:22px">Tamanho de mercado</h3><div class="card"><div style="overflow:auto"><table class="mini"><tr><th></th><th>Estabelecimentos</th><th>Ticket mensal por cliente</th><th>Mercado mensal</th><th>Fonte</th></tr>'
     +'<tr><td><b>TAM</b> · '+esc(M.tam.l)+'</td><td>'+M.tam.v.toLocaleString('pt-BR')+' <span class="muted">(mín. '+M.tam.min.toLocaleString('pt-BR')+')</span></td><td>'+brl(tk)+'</td><td>'+brl(M.tam.v*tk)+'</td><td class="muted" style="white-space:normal;max-width:300px">'+esc(M.tam.f)+'</td></tr>'
     +'<tr><td><b>SAM</b> · '+esc(M.sam.l)+'</td><td>'+M.sam.v.toLocaleString('pt-BR')+'</td><td>'+brl(tk)+'</td><td>'+brl(M.sam.v*tk)+'</td><td class="muted" style="white-space:normal;max-width:300px">'+esc(M.sam.f)+'</td></tr>'
-    +'<tr><td><b>SOM</b> · SAM × conversão real do funil ('+pcX(convG,1)+')</td><td>'+som.toLocaleString('pt-BR')+'</td><td>'+brl(tk)+'</td><td>'+brl(som*tk)+'</td><td class="muted" style="white-space:normal;max-width:300px">Seu CRM: '+ganhos+' clientes em '+D.leads.length+' leads</td></tr></table></div>'
+    +'<tr><td><b>SOM</b> · Restaurantes e empórios que o funil converte (SAM × conversão real de '+pcX(convG,1)+')</td><td>'+som.toLocaleString('pt-BR')+'</td><td>'+brl(tk)+'</td><td>'+brl(som*tk)+'</td><td class="muted" style="white-space:normal;max-width:300px">Seu CRM: '+ganhos+' clientes em '+D.leads.length+' leads</td></tr></table></div>'
     +(m?'<div class="g g12" style="margin-top:14px"><div class="stat"><span>Meta '+m.metaKg+' kg/'+PER_NOME[m.periodo]+' como parte do mercado</span><b>'+pcX(need?need/M.sam.v:0,2)+' do SAM</b><small>'+(need||'—')+' clientes de '+M.sam.v.toLocaleString('pt-BR')+'</small></div><div class="stat"><span>Meta anual ('+(m.metaKg*(m.periodo==='mensal'?12:m.periodo==='trimestral'?4:1)/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' t) no volume nacional plant-based</span><b>'+pcX(m.metaKg*(m.periodo==='mensal'?12:m.periodo==='trimestral'?4:1)/1000/trs,2)+'</b><small>de '+trs.toLocaleString('pt-BR')+' t/ano · '+esc(M.ref.f)+'</small></div></div>':'')
     +'<div class="g g12" style="margin-top:12px"><div class="stat"><span>Leads a trabalhar para fechar os '+(need||'—')+' clientes só com prospecção direta ('+pcX(convD,1)+')</span><b>'+(leadsD||'—')+'</b></div><div class="stat"><span>Se vierem por inbound ('+pcX(convI,0)+', amostra pequena)</span><b>'+(leadsI||'—')+'</b></div></div></div>';
   return h}
-function convOrigemCard(){var CO=convPorOrigem();return '<h3 style="margin-top:22px">Conversão por origem</h3><div class="card"><div style="overflow:auto"><table class="mini"><tr><th>Origem</th><th>Leads</th><th>Contato feito</th><th>Respondeu</th><th>Amostra</th><th>Negociação</th><th>Clientes</th><th>Conversão</th></tr>'
+function convOrigemCard(){var CO=convPorOrigem().filter(function(x){return !/^(lista pesquisada|pesquisa claude)/i.test(x.o)});return '<h3 style="margin-top:22px">Conversão por origem</h3><div class="card"><div style="overflow:auto"><table class="mini"><tr><th>Origem</th><th>Leads</th><th>Contato feito</th><th>Respondeu</th><th>Amostra</th><th>Negociação</th><th>Clientes</th><th>Conversão</th></tr>'
   +CO.map(function(x){return '<tr><td><b>'+esc(x.o)+'</b></td><td>'+x.leads+'</td><td>'+x.contato+'</td><td>'+x.resp+'</td><td>'+x.am+'</td><td>'+x.neg+'</td><td><b>'+x.cli+'</b></td><td>'+(x.contato?pcX(x.conv,1):'<span class="muted">sem contato ainda</span>')+'</td></tr>'}).join('')+'</table></div></div>'}
 function vIcp(){var all=D.leads,mapa=cidadeMapa(all.map(function(l){return l.Cidade})),pe=function(l){return okResp(l['Responsável'])};
   var T=icpTracos(),h='<div class="ph"><div><h2>'+NOME.icp+'</h2><div class="muted">Quem priorizar e qual o tamanho da oportunidade</div></div><span>'+(INT?recarregar():'')+'</span></div>'+pessoaBar();
-  h+='<div class="card" style="margin-bottom:12px"><h3>Perfil dos clientes atuais (base do ICP)</h3>'+(T.n?'<div class="row" style="gap:24px"><div>Clientes ganhos no CRM: <b>'+T.n+'</b><br>Potencial médio: <b>'+brl(T.pot)+'/mês</b></div><div style="flex:1;min-width:220px"><div class="muted">Segmentos</div>'+barsX(Object.keys(T.seg).map(function(k){return [k,T.seg[k]]}),function(v){return v},'#00785A')+'</div><div style="flex:1;min-width:220px"><div class="muted">Cidades</div>'+barsX(Object.keys(T.cid).reduce(function(a,k){var c=mapa(k)||'(sem cidade)';var x=a.filter(function(y){return y[0]===c})[0];if(x)x[1]+=T.cid[k];else a.push([c,T.cid[k]]);return a},[]),function(v){return v},'#DB853D')+'</div></div>':'<div class="muted">Ainda não há leads em "Ganho" no CRM.</div>')+'<div class="muted" style="margin-top:8px">Foco: restaurantes de ticket médio alto, porque o produto é premium e precisa de um cardápio que sustente o valor do prato e eleve o ticket.</div></div>';
+  h+=perfilCard()+'<div style="height:16px"></div>';
   var fila=all.filter(function(l){return ativo(l)&&l.Etapa!=='Sugerido'&&pe(l)}).map(function(l){var r=scoreLead(l,T);return {l:l,s:r.s,why:r.why}}).sort(function(a,b){return b.s-a.s}).slice(0,12);
   h+='<h3>🎯 Falar hoje com estes ('+fila.length+')</h3>'+(fila.length?'<div style="overflow:auto"><table><tr><th>Lead</th><th>Etapa</th><th>Responsável</th><th>Por que agora</th><th>Score</th><th></th></tr>'+fila.map(function(x){return '<tr class="click" onclick="openLead(\''+x.l.ID+'\')"><td><b>'+esc(x.l.Estabelecimento)+'</b><div class="muted">'+esc(mapa(x.l.Cidade))+'</div></td><td>'+esc(x.l.Etapa)+'</td><td>'+esc(x.l['Responsável']||'—')+'</td><td>'+(x.why.map(function(w){return '<span class="tag gray" style="margin:1px">'+esc(w)+'</span>'}).join('')||'<span class="muted">—</span>')+'</td><td><b>'+x.s+'</b></td><td><button class="btn sm sec">Abrir</button></td></tr>'}).join('')+'</table></div>':'<div class="card">Nenhum lead ativo neste filtro.</div>');
   var sug=all.filter(function(l){return l.Etapa==='Sugerido'}).map(function(l){var r=scoreSugerido(l,T);return {l:l,s:r.s,why:r.why}}).sort(function(a,b){return b.s-a.s}).slice(0,12),temPreco=all.some(function(l){return obsLead(l).preco>0});
@@ -868,8 +909,65 @@ function vIcp(){var all=D.leads,mapa=cidadeMapa(all.map(function(l){return l.Cid
   var map=all.filter(function(l){return l['Place ID']||l.Etapa==='Ganho'}),cid={};
   map.forEach(function(l){var c=mapa(l.Cidade)||'(sem cidade)',o=cid[c]=cid[c]||{n:0,g:0,w:0,wg:0},w=pesoPDV(l);o.n++;o.w+=w;if(l.Etapa==='Ganho'){o.g++;o.wg+=w}});
   h+='<h3 style="margin-top:18px">Distribuição por cidade (numérica vs. ponderada pela importância do ponto)</h3><div style="overflow:auto"><table><tr><th>Cidade</th><th>PDVs mapeados</th><th>Clientes</th><th>Distribuição numérica</th><th>Distribuição ponderada</th></tr>'+Object.keys(cid).sort(function(a,b){return cid[b].n-cid[a].n}).map(function(k){var o=cid[k];return '<tr><td><b>'+esc(k)+'</b></td><td>'+o.n+'</td><td>'+o.g+'</td><td>'+pcX(o.g/o.n,1)+'</td><td>'+pcX(o.w?o.wg/o.w:0,1)+'</td></tr>'}).join('')+'</table></div><div class="muted" style="margin:6px 2px;font-size:12px">Peso do ponto = avaliações no Maps (log) × fator de ticket ($ = 1, $$ = 1,3, $$$ = 1,6, $$$$ = 2). Cidades escritas de formas diferentes (São Paulo, são paulo, São Paulo/SP) contam juntas.</div>';
-  h+=mercadoCard()+convOrigemCard();
+  var nsc=semCidadeLeads().length;if(nsc)h+='<div style="margin:8px 0"><button class="btn sm sec" onclick="completarCidades()">Completar cidades ('+nsc+' leads sem cidade)</button></div>';
+  h+=convOrigemCard();
   $('main').innerHTML=h;if(!INT)intLoad()}
+/* ===================== Perfil dos clientes (ICP), metas e mercado, cidades, sem emojis ===================== */
+function segDe(nome){var l=leadDe(nome),s=l&&l.Segmento;if(s&&!/^outro$/i.test(s))return s;
+  if(/emp[oó]rio|loja|mercad|hortifruti|armaz/i.test(nome))return 'Empório / loja natural';if(/caf[eé]|padaria/i.test(nome))return 'Café / padaria';if(/restaurante|bistr|catering|buffet|chef|cozinha/i.test(nome))return 'Restaurante / buffet';return 'Sem segmento informado'}
+function perfilClientes(){if(!INT)return null;var A=INT.carteira.ativos.filter(function(a){return a.nPedidos>0}),mapa=cidadeMapa(A.map(function(a){return a.cidade}));
+  var rows=A.map(function(a){var l=leadDe(a.nome);return {nome:a.nome,seg:segDe(a.nome),cid:mapa(a.cidade),pedidos:a.nPedidos,receita:a.receita,ticket:a.ticketMedio,kg:a.kgMedio,ciclo:a.ciclo,ultimo:a.ultimoPedido,origem:(l&&l.Origem==='Pesquisa Claude'?'Lista pesquisada':(l&&l.Origem))||'Sem lead no CRM',dono:donoCliente(a.nome)}});
+  var rec=rows.reduce(function(s,r){return s+r.receita},0),ped=rows.reduce(function(s,r){return s+r.pedidos},0),cic=rows.filter(function(r){return r.pedidos>=2&&r.ciclo}).map(function(r){return r.ciclo}),
+    ord=rows.slice().sort(function(a,b){return b.receita-a.receita});
+  function grp(k){var g={};rows.forEach(function(r){var x=r[k]||'(sem cidade cadastrada)';g[x]=g[x]||{k:x,n:0,receita:0,nomes:[]};g[x].n++;g[x].receita+=r.receita;g[x].nomes.push(r.nome)});return Object.keys(g).map(function(x){return g[x]}).sort(function(a,b){return b.receita-a.receita})}
+  return {rows:ord,n:rows.length,receita:rec,pedidos:ped,ticket:ped?Math.round(rec/ped):0,kgPed:ped?Math.round(rows.reduce(function(s,r){return s+r.kg*r.pedidos},0)/ped*10)/10:0,ciclo:cic.length?Math.round(cic.reduce(function(s,x){return s+x},0)/cic.length):null,
+    top3:rec?ord.slice(0,3).reduce(function(s,r){return s+r.receita},0)/rec:0,seg:grp('seg'),cid:grp('cid'),orig:grp('origem'),semCidade:rows.filter(function(r){return !r.cid}).map(function(r){return r.nome})}}
+function icpResumoCard(){var P=perfilClientes();if(!P||!P.n)return '<div class="card">'+chead('Perfil do cliente (ICP)','ainda sem clientes com pedido')+'</div>';
+  var cs=P.seg.map(function(x,i){return {l:x.k,v:x.receita,c:SERIES[i%SERIES.length]}}),c1=P.cid.filter(function(x){return x.k.indexOf('(')!==0})[0];
+  return '<div class="card">'+chead('Perfil do cliente (ICP)','quem compra de nós hoje · receita por segmento',totTag(P.n+' clientes'))+donut(cs,{centro:'',fmt:brl})
+    +'<div class="stats" style="margin-top:10px"><div class="stat"><span>Ticket médio por pedido</span><b>'+brl(P.ticket)+'</b></div><div class="stat"><span>Ciclo médio de recompra</span><b>'+(P.ciclo==null?'—':P.ciclo+' dias')+'</b></div><div class="stat"><span>Cidade líder</span><b>'+(c1?esc(c1.k):'—')+'</b></div><div class="stat"><span>Top 3 clientes</span><b>'+pcX(P.top3)+' da receita</b></div></div></div>'}
+function perfilCard(){var P=perfilClientes();if(!P)return '';if(!P.n)return '<div class="card" style="margin-bottom:12px"><h3>Perfil dos clientes atuais (base do ICP)</h3><div class="muted">Ainda não há clientes com pedido.</div></div>';
+  var h='<h3>Perfil dos clientes atuais (base do ICP)</h3><div class="muted" style="margin:-4px 0 10px;font-size:12.5px">Calculado a partir dos clientes que já fizeram pedido (planilha de monitoramento), com cidade do cadastro e segmento do lead no CRM.</div>';
+  h+='<div class="kpis">'+kpiX('Clientes com pedido',P.n,'cadastros ativos com pedido','', 'verde')+kpiX('Ticket médio por pedido',brl(P.ticket),P.pedidos+' pedidos no total','', 'lima')+kpiX('Receita acumulada',brl(P.receita),'top 3 = '+pcX(P.top3)+' da receita','', 'laranja')+kpiX('Ciclo médio de recompra',P.ciclo==null?'—':P.ciclo+' dias','clientes com 2+ pedidos','', 'azul')+kpiX('Kg por pedido',String(P.kgPed).replace('.',','),'média dos clientes','', 'roxo')+'</div>';
+  function col(t,rows,cor){return '<div class="card"><h3>'+t+'</h3>'+barsX(rows.map(function(x){return [x.k+' ('+x.n+')',x.receita]}),brl,cor)+'</div>'}
+  h+='<div class="g g3" style="margin-top:14px">'+col('Receita por segmento',P.seg,'#00785A')+col('Receita por cidade',P.cid,'#DB853D')+col('Receita por origem do lead',P.orig,'#8A4B1A')+'</div>';
+  h+='<div class="card" style="margin-top:14px"><h3>Quem são os clientes</h3><div style="overflow:auto"><table class="mini"><tr><th>Cliente</th><th>Segmento</th><th>Cidade</th><th>Pedidos</th><th>Receita</th><th>Ticket</th><th>Ciclo</th><th>Último pedido</th><th>Origem</th></tr>'
+    +P.rows.map(function(r){return '<tr><td><b>'+esc(r.nome)+'</b></td><td>'+esc(r.seg)+'</td><td>'+(esc(r.cid)||'<span class="muted">sem cidade</span>')+'</td><td>'+r.pedidos+'</td><td>'+brl(r.receita)+'</td><td>'+brl(r.ticket)+'</td><td>'+(r.pedidos>=2&&r.ciclo?r.ciclo+' d':'—')+'</td><td>'+(dBR(r.ultimo)||'—')+'</td><td>'+esc(r.origem)+'</td></tr>'}).join('')+'</table></div>'
+    +(P.semCidade.length?'<div class="muted" style="margin-top:8px;font-size:12px">Sem cidade no cadastro de Clientes: '+P.semCidade.map(esc).join(', ')+'. Preencha a cidade na planilha (aba Clientes) ou em Novo cliente.</div>':'')+'</div>';
+  return h}
+
+/* ===================== Metas e mercado ===================== */
+function vMetas(){if(!needInt(NOME.metas))return;
+  var metaC=+D.metaContatosSemana||30,metaG=+D.metaGanhosMes||4,t=today(),ini=new Date(t.getFullYear(),t.getMonth(),1).getTime(),tr=transicoes(),PF=performance();
+  var h='<div class="ph"><div><h2>'+NOME.metas+'</h2><div class="muted">Quanto precisamos vender, quantos clientes isso exige e qual o tamanho do mercado</div></div><span>'+recarregar()+'</span></div>'+metaHero();
+  h+='<h3 style="margin-top:22px">Metas por pessoa</h3><div class="card"><div style="overflow:auto"><table class="mini"><tr><th>Pessoa</th><th>Contatos na semana</th><th>Meta</th><th>Novos clientes no mês</th><th>Meta</th></tr>'
+    +D.users.map(function(u){var p=PF.filter(function(x){return x.n===u.nome})[0]||{c7:0},g=tr.filter(function(x){return x.autor===u.nome&&x.para==='Ganho'&&d(x.data)>=ini}).length;
+      function bar(v,m){var pc=Math.min(100,Math.round(v/m*100));return '<div class="pbar"><i style="width:'+pc+'%;background:'+(pc>=100?'#006E51':'#DB853D')+'"></i><span>'+v+'</span></div>'}
+      return '<tr><td><b>'+esc(u.nome)+'</b></td><td>'+bar(p.c7,metaC)+'</td><td>'+metaC+'</td><td>'+bar(g,metaG)+'</td><td>'+metaG+'</td></tr>'}).join('')+'</table></div></div>';
+  h+=mercadoCard()+convOrigemCard();
+  $('main').innerHTML=h}
+
+/* ===================== Completar cidades dos leads ===================== */
+function semCidadeLeads(){var ordem=['Negociação','Amostra enviada','Respondeu','Contato feito','Mapeado','Sugerido'];
+  return D.leads.filter(function(l){return !cidadeCanon(l.Cidade)&&l.Etapa!=='Perdido'&&okResp(l['Responsável'])}).sort(function(a,b){return ordem.indexOf(a.Etapa)-ordem.indexOf(b.Etapa)})}
+function completarCidades(){var L=semCidadeLeads().slice(0,25);if(!L.length){toast('Todos os leads deste filtro já têm cidade');return}
+  formModal({titulo:'Completar cidades ('+L.length+' de '+semCidadeLeads().length+')',ok:'Salvar cidades',intro:'Preencha só as que você souber, no formato Cidade/UF. As vazias ficam como estão.',campos:L.map(function(l){return {k:l.ID,l:l.Estabelecimento+' · '+l.Etapa,t:'text',ph:'ex.: Campinas/SP'}}),
+    salvar:function(v,ok,fail){var ids=Object.keys(v).filter(function(k){return String(v[k]).trim()});if(!ids.length){toast('Nada preenchido');return fail()}
+      var p=Promise.resolve();ids.forEach(function(id){p=p.then(function(){return callSilent('saveLead',{ID:id,Cidade:cidadeCanon(v[id])||v[id].trim()}).then(function(r){merge(r)})})});
+      p.then(function(){ok();render();toast(ids.length+' cidade(s) salvas')}).catch(function(){fail()})}})}
+
+/* ===================== Sem emojis na interface ===================== */
+(function(){var EMO=/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}️‍⃣]/u,EMOG=new RegExp(EMO.source,'gu'),ATR=['title','placeholder','aria-label','data-tip'];
+  window.semEmoji=function(t){return String(t==null?'':t).replace(EMOG,'')};
+  function limpaTxt(n){var t=n.nodeValue;if(!t||!EMO.test(t))return;var ini=EMO.test(t.charAt(0)+(t.charAt(1)||'')),r=t.replace(EMOG,'').replace(/\s{2,}/g,' ');if(ini)r=r.replace(/^\s+/,'');n.nodeValue=r}
+  function limpaEl(e){if(e.nodeType!==1)return;var tg=e.tagName;if(tg==='SCRIPT'||tg==='STYLE')return;
+    if(tg==='OPTION'&&EMO.test(e.textContent)&&!e.hasAttribute('value'))e.setAttribute('value',e.textContent);
+    ATR.forEach(function(a){var v=e.getAttribute(a);if(v&&EMO.test(v))e.setAttribute(a,semEmoji(v).replace(/\s{2,}/g,' ').trim())})}
+  function varre(raiz){if(raiz.nodeType===3){limpaTxt(raiz);return}if(raiz.nodeType!==1)return;limpaEl(raiz);
+    var w=document.createTreeWalker(raiz,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,null),n;while((n=w.nextNode())){if(n.nodeType===3){if(n.parentNode&&n.parentNode.tagName!=='TEXTAREA'&&n.parentNode.tagName!=='SCRIPT'&&n.parentNode.tagName!=='STYLE')limpaTxt(n)}else limpaEl(n)}}
+  function inicia(){document.title=semEmoji(document.title).trim();varre(document.body);
+    new MutationObserver(function(ms){ms.forEach(function(m){if(m.type==='characterData'){if(m.target.parentNode&&m.target.parentNode.tagName!=='TEXTAREA')limpaTxt(m.target)}else m.addedNodes.forEach(varre)})}).observe(document.body,{childList:true,subtree:true,characterData:true})}
+  if(document.body)inicia();else document.addEventListener('DOMContentLoaded',inicia)})();
 
 var COR = {'Sugerido':'#B9A6E0','Mapeado':'#9E9E9E','Contato feito':'#4A7BF7','Respondeu':'#2EA3C7','Amostra enviada':'#F2C94C','Negociação':'#F2572B','Ganho':'#2E9E5B','Perdido':'#E5484D','Frio':'#9E9E9E'};
 var RESPONDEU = ['Respondeu','Interessado','Pediu valores / material','Pediu amostra','Pediu para retornar depois','Sem interesse'];
@@ -921,7 +1019,7 @@ function merge(r){if(!r)return;Object.keys(r).forEach(function(k){if(k==='leads'
 function after(r){merge(r);render();if(OPEN)openLead(OPEN)}
 
 function go(v){VIEW=v;render();window.scrollTo(0,0)}
-function render(){if(!D)return;renderNav();renderSidebar();({hoje:vHoje,funil:vFunil,leads:vLeads,sug:vSug,buscar:vBuscar,mural:vMural,dash:vDash,posVenda:vPosVenda,carteira:vCarteira,previsao:vPrevisao,sellin:vSellin,icp:vIcp,amostras:vAmostras,pedidos:vPedidos,followups:vFollowups,painel:vPainel})[VIEW]();if(VIEW==='dash')montarMetaCard()}
+function render(){if(!D)return;renderNav();renderSidebar();({hoje:vHoje,funil:vFunil,leads:vLeads,sug:vSug,buscar:vBuscar,mural:vMural,dash:vDash,posVenda:vPosVenda,carteira:vCarteira,previsao:vPrevisao,sellin:vSellin,icp:vIcp,amostras:vAmostras,pedidos:vPedidos,followups:vFollowups,painel:vPainel,metas:vMetas})[VIEW]()}
 // Meta de volume (kg): card anexado ao Dashboard sem tocar no HTML gerado por vDash().
 function montarMetaCard(){
   $('main').insertAdjacentHTML('beforeend','<div class="card" id="metaCard" style="margin-top:14px;max-width:640px"><h3>🎯 Meta de volume (kg)</h3><div class="muted">Carregando…</div></div>');
@@ -949,7 +1047,7 @@ function salvarMetaUI(){
 
 function filtered(){var q=F.q.toLowerCase();return D.leads.filter(function(l){return (!q||(l.Estabelecimento+' '+l.Cidade+' '+l.Instagram+' '+l.Observações).toLowerCase().indexOf(q)>=0)&&(!F.resp||(F.resp==='__sem'?!l['Responsável']:l['Responsável']===F.resp))&&(!F.seg||l.Segmento===F.seg)&&(!F.orig||l.Origem===F.orig)})}
 function pessoaChips(){var base=D.leads.filter(function(l){return l.Etapa!=='Sugerido'});function n(p){return base.filter(function(l){return p==='__sem'?!l['Responsável']:(!p||l['Responsável']===p)}).length}
-  var ps=[['','Todos']].concat(D.users.map(function(u){return [u.nome,u.nome]})).concat([['__sem','Sem dono']]);
+  var ps=[['','Todos']].concat(D.users.map(function(u){return [u.nome,u.nome]}));
   return '<div class="acts" style="margin:0 0 10px">'+ps.map(function(p){var on=(F.resp||'')===p[0];return '<button class="btn sm '+(on?'':'sec')+'" onclick="F.resp=\''+p[0]+'\';render()">'+(p[0]&&p[0]!=='__sem'?'<span class="av" style="width:18px;height:18px;font-size:9px;margin-right:4px">'+ini(p[1])+'</span>':'')+esc(p[1])+' <b>'+n(p[0])+'</b></button>'}).join('')+(semDono().length?'<button class="btn sm lar" onclick="distribuirSemDono()">Distribuir os '+semDono().length+' sem dono</button>':'')+'</div>'}
 function filterBar(extra){return pessoaChips()+'<div class="filters"><input placeholder="🔎 Buscar…" value="'+esc(F.q)+'" oninput="F.q=this.value;clearTimeout(window._q);window._q=setTimeout(render,250)" style="min-width:220px">'+
  '<select onchange="F.resp=this.value;render()">'+opts(D.users.map(function(u){return u.nome}),F.resp,'Todos os responsáveis')+'</select>'+
@@ -1198,7 +1296,7 @@ function vDashBase(){
   D.atividades.forEach(function(a){if(a.Tipo==='Etapa'&&maxIdx[a['Lead ID']]!==undefined){var dest=String(a.Texto).split('→').pop().trim().replace(/\s*\(.*$/,'');var i=ordem.indexOf(dest);if(i>maxIdx[a['Lead ID']])maxIdx[a['Lead ID']]=i}});
   L.forEach(function(l){if(l.Etapa==='Perdido'&&maxIdx[l.ID]<1)maxIdx[l.ID]=1});
   var fun=ordem.map(function(e,i){var n=L.filter(function(l){return maxIdx[l.ID]>=i}).length;return [e,n]});
-  fun=fun.map(function(r,i){return [r[0],r[1],i?pct(r[1],fun[i-1][1])+' da etapa anterior':'',COR[r[0]]]});
+  var COR_F={'Mapeado':'#5E9C88','Contato feito':'#3F8A72','Respondeu':'#00785A','Amostra enviada':'#196454','Negociação':'#0B5A44','Ganho':'#054A37'};fun=fun.map(function(r,i){var base=fun[2]?fun[2][1]:0;return [i===3?'Amostra enviada (opcional)':r[0],r[1],i===0?'':(i===3?pct(r[1],base)+' dos que responderam':(i===4?pct(r[1],base)+' dos que responderam':pct(r[1],fun[i-1][1])+' da etapa anterior')),COR_F[r[0]]]});
   var ganhos=L.filter(function(l){return l.Etapa==='Ganho'}).length,perd=L.filter(function(l){return l.Etapa==='Perdido'}).length;
   // canal
   var porCanal={};C.forEach(function(a){var k=a.Canal||'Outro';porCanal[k]=porCanal[k]||{};var key=a['Lead ID'];porCanal[k][key]=porCanal[k][key]||RESPONDEU.indexOf(a.Resultado)>=0});
@@ -1207,7 +1305,7 @@ function vDashBase(){
   var byLead={};D.atividades.filter(function(a){return a.Tipo==='Contato'&&a['Lead ID']}).sort(function(a,b){return a.Data<b.Data?-1:1}).forEach(function(a){(byLead[a['Lead ID']]=byLead[a['Lead ID']]||[]).push(a)});
   var mig={};Object.keys(byLead).forEach(function(id){var arr=byLead[id];for(var i=1;i<arr.length;i++){if(arr[i].Canal&&arr[i-1].Canal&&arr[i].Canal!==arr[i-1].Canal){if(!inPeriod(arr[i].Data))continue;var k=arr[i-1].Canal+' → '+arr[i].Canal;mig[k]=mig[k]||{t:0,r:0};mig[k].t++;var resp=arr.slice(i).some(function(x){return x.Canal===arr[i].Canal&&RESPONDEU.indexOf(x.Resultado)>=0&&x.Resultado!=='Encaminhou para outro contato/canal'});if(resp)mig[k].r++;break}}});
   var migRows=Object.keys(mig).map(function(k){return [k,mig[k].t,mig[k].r]}).sort(function(a,b){return b[1]-a[1]});
-  function grp(key){var g={};L.forEach(function(l){var k=l[key]||'(vazio)';g[k]=g[k]||{t:0,g:0,a:0};g[k].t++;if(l.Etapa==='Ganho')g[k].g++;if(maxIdx[l.ID]>=3)g[k].a++});return Object.keys(g).map(function(k){return [k,g[k].t,g[k].a+' amostras · '+g[k].g+' ganhos ('+pct(g[k].g,g[k].t)+')']}).sort(function(a,b){return b[1]-a[1]})}
+  function grp(key){var g={};L.forEach(function(l){var k=l[key]||'(vazio)';if(/^(pesquisa claude|lista pesquisada)/i.test(k))return;g[k]=g[k]||{t:0,g:0,a:0};g[k].t++;if(l.Etapa==='Ganho')g[k].g++;if(maxIdx[l.ID]>=3)g[k].a++});return Object.keys(g).map(function(k){return [k,g[k].t,g[k].a+' amostras · '+g[k].g+' ganhos ('+pct(g[k].g,g[k].t)+')']}).sort(function(a,b){return b[1]-a[1]})}
   var pessoa=D.users.map(function(u){var c=C.filter(function(a){return a.Autor===u.nome}).length;var g=L.filter(function(l){return l['Responsável']===u.nome&&l.Etapa==='Ganho'}).length;return [u.nome,c,g+' ganhos']}).filter(function(r){return r[1]||r[2]!=='0 ganhos'});
   var mot={};L.filter(function(l){return l.Etapa==='Perdido'}).forEach(function(l){var k=l['Motivo de perda']||'(sem motivo)';mot[k]=(mot[k]||0)+1});
   var motRows=Object.keys(mot).map(function(k){return [k,mot[k],'',' #E5484D']}).sort(function(a,b){return b[1]-a[1]});
