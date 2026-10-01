@@ -198,7 +198,7 @@ function calcCarteira_(mon, hoje) {
     if (recusou) { pts.fup = 15; flags.push('último follow-up: recusou'); }
     var fupBaixa = fu.filter(function (f) { return BAIXA_VENDA_.test(f.obs + ' ' + f.prox + ' ' + f.resultado); })[0];
     if (c.motivo) { pts.motivo = 10; flags.push('motivo de queda registrado: ' + c.motivo); }
-    else if (fupBaixa) { pts.motivo = 8; flags.push('follow-up registra baixa venda: ' + (fupBaixa.obs || fupBaixa.prox)); }
+    else if (fupBaixa) { pts.motivo = 8; flags.push('follow-up: “' + (fupBaixa.obs || fupBaixa.prox) + '”'); }
     var score = n ? Math.round(Math.min(100, pts.atraso + pts.queda + pts.fup + pts.motivo)) : null;
     var nivel = score === null ? 'sem-pedidos' : (score >= 60 ? 'critico' : (score >= 40 ? 'alto' : (score >= 20 ? 'medio' : 'baixo')));
     var antecDias = c.antec > 0 ? c.antec : 3;
@@ -206,7 +206,8 @@ function calcCarteira_(mon, hoje) {
     ativos.push({ situacao: sit, nome: c.nome, cidade: c.cidade, tipoCadastro: c.tipo, nPedidos: n, ultimoPedido: ultimo ? ultimo.data : '', diasDesde: diasDesde, ciclo: ciclo,
       proxRecompra: dUlt !== null ? fromDia_(dUlt + ciclo) : '', atrasoDias: diasDesde !== null ? diasDesde - ciclo : null, kg90: r1_(kg90), kgPrev90: r1_(kgPrev), variacao: variacao,
       ticketMedio: Math.round(ticket), kgMedio: r1_(kgMedio), receita: Math.round(vTot), custo: Math.round(vTot - mTot), antec: c.antec > 0 ? c.antec : 3, regiao: regiao_(c.cidade), obs: c.obs, mix: mix, margemPct: vTot ? Math.round(mTot / vTot * 1000) / 10 : null, score: score, nivel: nivel, pts: pts, flags: flags,
-      ultimoFup: fu[0] ? { data: fu[0].data, resultado: fu[0].resultado, prox: fu[0].prox, obs: fu[0].obs } : null, proxPasso: (fu.filter(function (f) { return f.prox; })[0] || {}).prox || '', motivo: c.motivo, ficha: (mon.fichas || {})[k] || null,
+      ultimoFup: fu[0] ? { data: fu[0].data, resultado: fu[0].resultado, prox: fu[0].prox, obs: fu[0].obs } : null, proxPasso: (fu.filter(function (f) { return f.prox; })[0] || {}).prox || '',
+      notas: fu.filter(function (f) { return f.obs || f.prox; }).slice(0, 4).map(function (f) { return { data: f.data, resultado: f.resultado, obs: f.obs, prox: f.prox }; }), motivo: c.motivo, ficha: (mon.fichas || {})[k] || null,
       historico: pedidos.slice(-6).reverse().map(function (p) { return { data: p.data, un: p.un, kg: p.kg, valor: Math.round(p.valor), margemPct: p.margemPct }; }) });
   });
 
@@ -310,10 +311,41 @@ function calcPainel_(mon, hoje, carteira) {
   var motivos = {}; mon.clientes.forEach(function (c) { if (c.motivo) motivos[c.motivo] = (motivos[c.motivo] || 0) + 1; });
   var recTot = soma_(carteira.ativos, function (a) { return a.receita; });
   var porRec = carteira.ativos.slice().sort(function (x, y) { return y.receita - x.receita; });
+  // comparativo 30d vs 30d anteriores (como no Dashboard da planilha)
+  var comp = {
+    receita: { prev: Math.round(recPrev), now: Math.round(rec30) },
+    kg: { prev: r1_(kgPrev), now: r1_(kg30) },
+    pedidos: { prev: cont(ped, 30, 60), now: cont(ped, 0, 30) },
+    margem: { prev: Math.round(jan(ped, 30, 60, function (p) { return p.margemR; })), now: Math.round(jan(ped, 0, 30, function (p) { return p.margemR; })) }
+  };
+  // previsão de demanda (produção): clientes com próxima compra em até 14 dias × mix médio por pedido
+  var prev14 = { postas: 0, c200: 0, c300: 0, d200: 0, d300: 0 }, nPrev14 = 0, valor14 = 0;
+  carteira.ativos.forEach(function (a) {
+    if (!a.nPedidos || !a.proxRecompra) return;
+    if (iDia_(a.proxRecompra) - H > 14) return;
+    nPrev14++; valor14 += a.ticketMedio * Math.max(0.2, 0.9 - (a.score || 0) / 100);
+    ['postas', 'c200', 'c300', 'd200', 'd300'].forEach(function (k) { prev14[k] += a.mix[k] / a.nPedidos; });
+  });
+  var previstoSKU = SKU_.map(function (k) { return { sku: k[1], un: Math.round(prev14[k[0]]), kg: r1_(prev14[k[0]] * k[2]) }; });
+  // saúde da carteira
+  var recAcum = soma_(ped, function (p) { return p.valor; }), kgAcum = soma_(ped, function (p) { return p.kg; });
+  var intervalos = [], leads = [];
+  carteira.ativos.forEach(function (a) { if (a.nPedidos >= 2) intervalos.push(a.ciclo); });
+  ped.forEach(function (p) { if (p.entrega && p.data) leads.push(iDia_(p.entrega) - iDia_(p.data)); });
+  var fupsPos = mon.fups.filter(function (f) { return /comprou|vaicomprar/.test(nrm_(f.resultado)); }).length, fupsTot = mon.fups.filter(function (f) { return f.resultado; }).length;
+  var segs = carteira.ativos.filter(function (a) { return a.nPedidos >= 2; }).map(function (a) { var ps = ped.filter(function (p) { return nrm_(p.cliente) === nrm_(a.nome); }).sort(function (x, y) { return x.data < y.data ? -1 : 1; }); return iDia_(ps[1].data) - iDia_(ps[0].data); });
+  var compraram30 = {}; ped.forEach(function (p) { var d = iDia_(p.data); if (d > H - 30 && d <= H) compraram30[nrm_(p.cliente)] = 1; });
+  var saude = { precoKg: kgAcum ? Math.round(recAcum / kgAcum * 100) / 100 : null, cicloMedio: intervalos.length ? Math.round(soma_(intervalos, function (x) { return x; }) / intervalos.length) : null,
+    receitaAcum: Math.round(recAcum), ticketHistorico: ped.length ? Math.round(recAcum / ped.length) : 0, leadTime: leads.length ? r1_(soma_(leads, function (x) { return x; }) / leads.length) : null,
+    compraram30: Object.keys(compraram30).length, sucessoFup: fupsTot ? fupsPos / fupsTot : null, diasSegundaCompra: segs.length ? Math.round(soma_(segs, function (x) { return x; }) / segs.length) : null,
+    clientesQueda: carteira.ativos.filter(function (a) { return (a.variacao !== null && a.variacao <= -0.3) || a.nivel === 'critico'; }).length, margemAcum: Math.round(soma_(ped, function (p) { return p.margemR; })) };
+  var ranking = porRec.map(function (a) { return { nome: a.nome, pedidos: a.nPedidos, kg: r1_(soma_(ped.filter(function (p) { return nrm_(p.cliente) === nrm_(a.nome); }), function (p) { return p.kg; })), receita: a.receita,
+    ticket: a.nPedidos ? Math.round(a.receita / a.nPedidos) : 0, variacao: a.variacao, parte: recTot ? a.receita / recTot : 0, margemPct: a.margemPct, ritmo: a.variacao === null ? '' : (a.variacao <= -0.2 ? 'desacelerando' : (a.variacao >= 0.2 ? 'acelerando' : 'estável')) }; });
   return {
     kpis: { clientesAtivos: carteira.ativos.length, atrasados: cont_['🔴 Atrasado'] || 0, fupAgora: (cont_['🟡 Fazer FUP'] || 0) + (cont_['🟠 Sem resposta'] || 0) + carteira.prospects.filter(function (p) { return p.status === 'sem resposta 7d+'; }).length,
       taxaRecompra: com1.length ? com2.length / com1.length : null, receita30: Math.round(rec30), receitaPrev30: Math.round(recPrev), kg30: r1_(kg30), kgPrev30: r1_(kgPrev), pedidos30: cont(ped, 0, 30),
       ticketMedio90: n90 ? Math.round(rec90 / n90) : 0, margem90: rec90 ? Math.round(mar90 / rec90 * 1000) / 10 : null },
+    comparativo: comp, previstoSKU: previstoSKU, previsto14: { clientes: nPrev14, valor: Math.round(valor14) }, saude: saude, ranking: ranking,
     situacoes: cont_, acaoImediata: acao, semanal: semanal, produtos: produtos,
     regioes: Object.keys(reg).map(function (k) { return { regiao: k, kg: r1_(reg[k].kg), receita: Math.round(reg[k].receita) }; }).sort(function (a, b) { return b.receita - a.receita; }),
     transportes: Object.keys(transp).map(function (k) { return transp[k]; }).sort(function (a, b) { return b.pedidos - a.pedidos; }),
@@ -323,17 +355,62 @@ function calcPainel_(mon, hoje, carteira) {
   };
 }
 
+
+// ------------------------------------------------------------------ Meta: quantos clientes para bater a meta (base: últimos pedidos)
+function periodoMeta_(hoje, tipo) {
+  var d = new Date(iDia_(hoje) * 864e5), y = d.getUTCFullYear(), m = d.getUTCMonth(), ini, fim, meses;
+  if (tipo === 'anual') { ini = Date.UTC(y, 0, 1); fim = Date.UTC(y, 11, 31); meses = 12; }
+  else if (tipo === 'trimestral') { var q = Math.floor(m / 3) * 3; ini = Date.UTC(y, q, 1); fim = Date.UTC(y, q + 3, 0); meses = 3; }
+  else { ini = Date.UTC(y, m, 1); fim = Date.UTC(y, m + 1, 0); meses = 1; tipo = 'mensal'; }
+  return { tipo: tipo, ini: ini / 864e5, fim: fim / 864e5, meses: meses };
+}
+function calcMeta_(mon, hoje, cfg, carteira) {
+  cfg = cfg || {}; var metaKg = +cfg.kg > 0 ? +cfg.kg : 300, P = periodoMeta_(hoje, cfg.periodo), H = iDia_(hoje);
+  var ped = mon.pedidos.filter(function (p) { return p.tipo === 'Pedido' && p.data; });
+  var atingido = soma_(ped, function (p) { var d = iDia_(p.data); return d >= P.ini && d <= P.fim ? p.kg : 0; });
+  var d30 = soma_(ped, function (p) { var d = iDia_(p.data); return d > H - 30 && d <= H ? p.kg : 0; });
+  var com = carteira.ativos.filter(function (a) { return a.nPedidos >= 1 && a.kgMedio > 0; });
+  // perfil médio do cliente, pelos ÚLTIMOS pedidos de cada um: kg/pedido × pedidos/mês (ciclo)
+  var perfis = com.map(function (a) { return { kgPed: a.kgMedio, pedMes: 30.4 / Math.max(7, a.ciclo), kgMes: a.kgMedio * 30.4 / Math.max(7, a.ciclo) }; });
+  var kgMes = perfis.length ? soma_(perfis, function (x) { return x.kgMes; }) / perfis.length : 0;
+  var kgPed = perfis.length ? soma_(perfis, function (x) { return x.kgPed; }) / perfis.length : 0, pedMes = perfis.length ? soma_(perfis, function (x) { return x.pedMes; }) / perfis.length : 0;
+  var metaMes = metaKg / P.meses, necess = kgMes > 0 ? Math.ceil(metaMes / kgMes) : null;
+  var emDia = com.length;
+  // projeção até o fim do período: já vendido + recompras esperadas (prob. por risco) dentro do período
+  var esperado = 0; com.forEach(function (a) { if (!a.proxRecompra) return; var dp = iDia_(a.proxRecompra); if (dp <= P.fim) esperado += a.kgMedio * Math.max(0.2, 0.9 - (a.score || 0) / 100); });
+  var proj = atingido + esperado, diasRest = Math.max(0, P.fim - H);
+  return { metaKg: metaKg, periodo: P.tipo, inicio: fromDia_(P.ini), fim: fromDia_(P.fim), diasRestantes: diasRest, kgAtingido: r1_(atingido), progresso: metaKg ? atingido / metaKg : 0,
+    kg30d: r1_(d30), projecaoFim: r1_(proj), projecaoPct: metaKg ? proj / metaKg : 0, kgMesPorCliente: r1_(kgMes), kgPorPedido: r1_(kgPed), pedidosMesPorCliente: Math.round(pedMes * 10) / 10,
+    clientesNecessarios: necess, clientesAtivos: emDia, clientesFaltam: necess === null ? null : Math.max(0, necess - emDia),
+    pedidosMesNecessarios: kgPed > 0 ? Math.ceil(metaMes / kgPed) : null, baseClientes: com.length };
+}
+function lerConfigMeta_() {
+  var kg = 300, periodo = 'mensal';
+  try { var a = setting_('Meta v2: kg'), b = setting_('Meta v2: período'); if (a !== '' && +a > 0) kg = +a; if (b) periodo = String(b); } catch (e) {}
+  return { kg: kg, periodo: periodo };
+}
+function setConfig_(key, val) {
+  var C = sh_('Config'), v = C.getRange('I2:J40').getValues();
+  for (var i = 0; i < v.length; i++) if (String(v[i][0]).trim() === key) { C.getRange(i + 2, 10).setValue(val); invalidarCacheConfig_(); return; }
+  for (var j = 0; j < v.length; j++) if (!v[j][0]) { C.getRange(j + 2, 9, 1, 2).setValues([[key, val]]); invalidarCacheConfig_(); return; }
+}
+function salvarMetaKg(kg, periodo) {
+  if (!(+kg > 0)) throw new Error('Informe a meta em kg (maior que zero).');
+  if (['mensal', 'trimestral', 'anual'].indexOf(periodo) < 0) periodo = 'mensal';
+  setConfig_('Meta v2: kg', +kg); setConfig_('Meta v2: período', periodo);
+  return getInteligencia();
+}
+
 // ------------------------------------------------------------------ Entradas chamadas pelo front
-function montarInteligencia_(mon, hoje, meta) {
-  var carteira = calcCarteira_(mon, hoje);
+function montarInteligencia_(mon, hoje, metaCfg) {
+  var carteira = calcCarteira_(mon, hoje), meta = calcMeta_(mon, hoje, metaCfg, carteira);
   var pedidos = mon.pedidos.slice().sort(function (a, b) { return a.data < b.data ? 1 : -1; }).slice(0, 300);
   var fups = mon.fups.slice().sort(function (a, b) { return a.data < b.data ? 1 : -1; }).slice(0, 300);
   return { hoje: hoje, carteira: carteira, sell: calcSell_(mon, hoje), previsao: calcPrevisaoBase_(mon, hoje, carteira), painel: calcPainel_(mon, hoje, carteira), meta: meta,
     listas: mon.listas, clientes: mon.clientes, pedidos: pedidos, fups: fups };
 }
 function getInteligencia() {
-  var meta = null; try { meta = metaProgresso(); } catch (e) { Logger.log('metaProgresso: ' + e); }
-  var out = montarInteligencia_(lerMonitor_(), hojeISO_(), meta);
+  var out = montarInteligencia_(lerMonitor_(), hojeISO_(), lerConfigMeta_());
   out.geradoEm = iso_(new Date());
   return out;
 }
@@ -463,6 +540,92 @@ function salvarCliente(o) {
   return getInteligencia();
 }
 
+// ------------------------------------------------------------------ Cadastros duplicados: mescla e apaga o duplicado (com backup)
+function backupAba_(ss, nome) {
+  var s = ss.getSheetByName(nome); if (!s) return;
+  var dia = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'yyyy-MM-dd'), alvo = nome + '_backup_' + dia;
+  if (!ss.getSheetByName(alvo)) { var c = s.copyTo(ss); c.setName(alvo); c.hideSheet(); }
+}
+/** Núcleo (sem trava, para poder rodar dentro das migrações): mantém "manter", move follow-ups/pedidos do "remover" e APAGA a linha dele em Clientes. */
+function mesclarClientesCore_(manter, remover) {
+  if (!manter || !remover || nrm_(manter) === nrm_(remover)) throw new Error('Escolha dois cadastros diferentes.');
+  var ss = SpreadsheetApp.openById(CFG.MONITOR_ID), cl = ss.getSheetByName('Clientes');
+  var v = cl.getRange(2, 1, Math.max(cl.getLastRow() - 1, 1), 1).getValues(), rm = -1, mt = -1, nomeManter = '';
+  for (var i = 0; i < v.length; i++) { if (nrm_(v[i][0]) === nrm_(remover)) rm = i + 2; if (nrm_(v[i][0]) === nrm_(manter)) { mt = i + 2; nomeManter = String(v[i][0]).trim(); } }
+  if (rm < 0 || mt < 0) throw new Error('Não encontrei um dos cadastros na aba Clientes.');
+  backupAba_(ss, 'Clientes'); backupAba_(ss, 'Follow-ups'); backupAba_(ss, 'Pedidos B2B');
+  var movidos = 0;
+  ['Follow-ups', 'Pedidos B2B'].forEach(function (aba) {
+    var sh = ss.getSheetByName(aba); if (!sh || sh.getLastRow() < 2) return;
+    var rng = sh.getRange(2, 2, sh.getLastRow() - 1, 1), vals = rng.getValues(), mudou = false;
+    vals.forEach(function (r, k) { if (r[0] && nrm_(r[0]) === nrm_(remover)) { vals[k][0] = nomeManter; mudou = true; movidos++; } });
+    if (mudou) rng.setValues(vals);
+  });
+  cl.deleteRow(rm);
+  limparCacheMonitor_();
+  Logger.log('mesclarClientes: "' + remover + '" -> "' + nomeManter + '" (' + movidos + ' linha(s) movidas)');
+}
+function mesclarClientes(manter, remover) {
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try { mesclarClientesCore_(manter, remover); } finally { lock.releaseLock(); }
+  return getInteligencia();
+}
+// Migração única: os 3 duplicados já conhecidos (a descrição escrita pelos colaboradores é preservada: só o nome do cliente é ajustado)
+function migrarDuplicadosV1_() {
+  var ss = SpreadsheetApp.openById(CFG.MONITOR_ID), cl = ss.getSheetByName('Clientes'), log = [];
+  var nomes = cl.getRange(2, 1, Math.max(cl.getLastRow() - 1, 1), 1).getValues().map(function (r) { return String(r[0]).trim(); });
+  function existe(n) { return nomes.filter(function (x) { return nrm_(x) === nrm_(n); })[0] || ''; }
+  [['Vegsim - Mooca', 'Vegsim Mocca'], ['Empório Quatro Estrelas', '4 Estrelas'], ['Manjericão do Quintal', 'Manjerição Pircicaba']].forEach(function (par) {
+    var a = existe(par[0]), b = existe(par[1]);
+    if (a && b) { mesclarClientesCore_(a, b); log.push(b + ' → ' + a); nomes = nomes.filter(function (x) { return nrm_(x) !== nrm_(b); }); }
+  });
+  return log.join('; ') || 'nenhum duplicado conhecido encontrado';
+}
+
+// ------------------------------------------------------------------ Dono do lead: ninguém começa um lead que é de outra pessoa; só o dono transfere
+function quemSou_(quem) {
+  var n = ''; try { n = String(me_().nome || '').trim(); } catch (e) {}
+  n = n || String(quem || '').trim();
+  if (!n) throw new Error('Escolha seu nome no canto superior direito antes de agir.');
+  return n;
+}
+function leadDono_(id) {
+  var L = sh_('Leads'), r = rowOf_(L, id); if (r < 0) return '';
+  var h = L.getRange(1, 1, 1, L.getLastColumn()).getValues()[0];
+  return String(L.getRange(r, h.indexOf('Responsável') + 1).getValue() || '').trim();
+}
+/** Bloqueia quem não é o dono; se o lead não tem dono, quem agir primeiro fica com ele. Retorna {eu, donoAntes}. */
+function guardLead_(id, quem) {
+  var eu = quemSou_(quem), dono = leadDono_(id);
+  if (dono && dono !== eu) throw new Error('🔒 Este lead é de ' + dono + '. Só ' + dono + ' pode agir nele; peça para ' + dono + ' transferir o lead para você.');
+  if (!dono) writeLead_({ ID: id, 'Responsável': eu });
+  return { eu: eu, donoAntes: dono };
+}
+function leadDuplicado_(nome, insta, fone) {
+  var d = dupDe_(nome, insta, fone, ''); if (!d) return null;
+  var L = sh_('Leads'), v = L.getDataRange().getValues(), h = v.shift(), iN = h.indexOf('Estabelecimento'), iR = h.indexOf('Responsável');
+  for (var i = 0; i < v.length; i++) if (v[i][iN] === d) return { nome: d, dono: String(v[i][iR] || '').trim() };
+  return { nome: d, dono: '' };
+}
+/** Só o dono transfere o lead para outro colaborador. */
+function transferirLead(id, para, quem) {
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var L = sh_('Leads'), r = rowOf_(L, id); if (r < 0) throw new Error('Lead não encontrado');
+    var eu = quemSou_(quem), dono = leadDono_(id);
+    if (!dono) throw new Error('Este lead ainda não tem responsável.');
+    if (dono !== eu) throw new Error('🔒 Só ' + dono + ' pode transferir este lead.');
+    var nomes = users_().map(function (u) { return u.nome; });
+    if (nomes.indexOf(para) < 0) throw new Error('Escolha um colaborador da lista.');
+    if (para === eu) throw new Error('O lead já é seu.');
+    writeLead_({ ID: id, 'Responsável': para });
+    var h = L.getRange(1, 1, 1, L.getLastColumn()).getValues()[0], nome = L.getRange(r, h.indexOf('Estabelecimento') + 1).getValue();
+    var atv = logAtv_({ leadId: id, nome: nome, tipo: 'Sistema', texto: 'Lead transferido de ' + eu + ' para ' + para });
+    notificar_([para], nome, eu + ' transferiu este lead para você', id);
+    return { leads: [leadLeve_(id)], atividades: [atv] };
+  } finally { lock.releaseLock(); }
+}
+
 // Migração única (roda sozinha pelo CRM): prepara a planilha de Monitoramento para o app unificado.
 function migrarMonitoramentoV1_() {
   var ss = SpreadsheetApp.openById(CFG.MONITOR_ID), log = [];
@@ -487,4 +650,4 @@ function migrarMonitoramentoV1_() {
   return log.join('; ');
 }
 
-if (typeof module !== 'undefined') module.exports = { montarInteligencia_: montarInteligencia_, calcPainel_: calcPainel_, calcCarteira_: calcCarteira_, calcSell_: calcSell_, calcPrevisaoBase_: calcPrevisaoBase_, iDia_: iDia_, fromDia_: fromDia_, nrm_: nrm_, INT_: INT_ };
+if (typeof module !== 'undefined') module.exports = { calcMeta_: calcMeta_, montarInteligencia_: montarInteligencia_, calcPainel_: calcPainel_, calcCarteira_: calcCarteira_, calcSell_: calcSell_, calcPrevisaoBase_: calcPrevisaoBase_, iDia_: iDia_, fromDia_: fromDia_, nrm_: nrm_, INT_: INT_ };

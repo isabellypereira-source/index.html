@@ -10,20 +10,15 @@ else{mon=require('../test/sample.js').mon;crm={leads:[],atividades:[],users:[{no
 mon.listas={resultadosFup:['✅ Comprou','📅 Vai comprar (agendado)','⏸️ Adiou / pediu p/ voltar depois','🔇 Não respondeu','❌ Recusou'],canais:['WhatsApp','Ligação','E-mail','Visita','Instagram','Outro'],tiposContato:['Recompra','Amostra','Reativação'],
  transportes:[...new Set(mon.pedidos.map(p=>p.transporte).filter(Boolean))],origens:[...new Set(mon.pedidos.map(p=>p.origem).filter(Boolean))],tabelas:['Antiga','Nova'],faixas:['Auto','Varejo','Faixa 2','Faixa 3'],tiposCliente:['Ativo','Prospecção','Inativo'],ultimaTabela:'Antiga',
  motivosQueda:['Preço','Não girou / vendeu pouco','Concorrente','Frete / logística','Produto / qualidade','Fechou / mudou de foco','Sazonalidade / estoque alto','Sem resposta','Outro']};
-let META={kg:300000,dias:365,inicio:'2026-01-01'};
-function meta(){const d=s=>Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5,H=d(HOJE),ini=d(META.inicio),fim=ini+META.dias;
- const ped=mon.pedidos.filter(p=>p.tipo==='Pedido'&&p.data);let kg=0,kg90=0,cl={};
- ped.forEach(p=>{const x=d(p.data);if(x>=ini&&x<=fim)kg+=p.kg;if(x>H-90&&x<=H){kg90+=p.kg;cl[p.cliente]=1}});
- const n=Object.keys(cl).length,kpc=n?kg90/n/3:0,dp=Math.max(1,H-ini),dr=Math.max(1,fim-H),rit=kg/dp,proj=kg+rit*dr,falta=Math.max(0,META.kg-proj);
- const nov=kpc>0?Math.ceil(falta/(kpc*(dr/30.4))):null;
- const iso=x=>new Date(x*864e5).toISOString().slice(0,10);
- return {metaKg:META.kg,periodoDias:META.dias,inicio:iso(ini),fim:iso(fim),kgAtingido:kg,progresso:META.kg?kg/META.kg:0,ritmoAtualDia:Math.round(rit*10)/10,kgPorClienteMes:Math.round(kpc*10)/10,novosClientesRealista:nov,novosClientesGordura:nov?Math.ceil(nov*1.3):null}}
+let META={kg:300,periodo:'mensal'};
+const meta=()=>META;
 const inteligencia=()=>M.montarInteligencia_(mon,HOJE,meta());
 const H={
  getAll:()=>({me:{nome:'Isa',email:'isabelly.pereira@bioedtech.com.br'},leads:crm.leads,atividades:crm.atividades,users:crm.users,etapas:['Sugerido','Mapeado','Contato feito','Respondeu','Amostra enviada','Negociação','Ganho','Frio','Perdido'],segmentos:crm.segmentos,origens:crm.origens,canais:crm.canais,resultados:crm.resultados,motivos:crm.motivos,temChaveMaps:true,metaContatosSemana:30,metaGanhosMes:4,modelos:[],rodizio:crm.users.map(u=>u.nome)}),
  getInteligencia:()=>inteligencia(),
- metaProgresso:()=>meta(),
- salvarMeta:(kg,dias,ini)=>{META={kg:+kg,dias:+dias,inicio:ini||META.inicio};return meta()},
+ salvarMetaKg:(kg,per)=>{META={kg:+kg,periodo:per};return inteligencia()},
+ mesclarClientes:(manter,remover)=>{const nm=n=>M.nrm_(n);mon.fups.forEach(f=>{if(nm(f.cliente)===nm(remover))f.cliente=manter});mon.pedidos.forEach(p=>{if(nm(p.cliente)===nm(remover))p.cliente=manter});mon.clientes=mon.clientes.filter(c=>nm(c.nome)!==nm(remover));return inteligencia()},
+ transferirLead:(id,para,quem)=>{const l=crm.leads.find(x=>x.ID===id);if(!l)throw new Error('Lead não encontrado');if(l['Responsável']!==quem)throw new Error('Só '+l['Responsável']+' pode transferir');l['Responsável']=para;return {leads:[l],atividades:[]}},
  registrarPedido:o=>{const q=['postas','c200','c300','d200','d300'].map(k=>+o[k]||0);const un=q.reduce((a,b)=>a+b,0);const kg=q[0]*.2+q[1]*.2+q[2]*.3+q[3]*.2+q[4]*.3;
    const valor=+o.valorAjustado||Math.round(un*38);mon.pedidos.push({data:o.data,cliente:o.cliente,tipo:'Pedido',postas:q[0],c200:q[1],c300:q[2],d200:q[3],d300:q[4],un,kg,entrega:o.entrega||'',transporte:o.transporte||'',origem:o.origem||'',obs:o.obs||'',tabela:o.tabela||'',valor,custo:valor*.45,margemR:valor*.55,margemPct:55});
    const c=mon.clientes.find(c=>c.nome===o.cliente);if(c&&c.tipo!=='Ativo')c.tipo='Ativo';const r=inteligencia();r.salvo={linha:99,un,kg,valorFinal:valor,margemR:valor*.55,margemPct:.55};return r},
@@ -41,4 +36,4 @@ const server=http.createServer((req,res)=>{
   window.google={script:{run:mk()}}})()</script>`;
   h=h.replace('<script>',shim+'<script>');res.setHeader('content-type','text/html; charset=utf-8');res.end(h);return}
  res.statusCode=404;res.end('nf')});
-server.listen(process.env.PORT||8765,()=>console.log('preview em http://localhost:'+(process.env.PORT||8765)));
+require('fs').writeFileSync('/tmp/preview.pid',String(process.pid));server.listen(process.env.PORT||8765,()=>console.log('preview em http://localhost:'+(process.env.PORT||8765)));
