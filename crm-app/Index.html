@@ -976,10 +976,10 @@ function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(function(){t.style.display='none'},2600)}
 function busy(b){$('loading').style.display=b?'flex':'none'}
-function call(fn){var args=[].slice.call(arguments,1);args=withQuem(fn,args);busy(true);return new Promise(function(ok,ko){google.script.run.withSuccessHandler(function(r){busy(false);ok(r)}).withFailureHandler(function(e){busy(false);alertErr(e);ko(e)})[fn].apply(null,args)})}
+function call(fn){var args=[].slice.call(arguments,1);args=withQuem(fn,args);busy(true);return new Promise(function(ok,ko){gsr().withSuccessHandler(function(r){busy(false);ok(r)}).withFailureHandler(function(e){busy(false);alertErr(e);ko(e)})[fn].apply(null,args)})}
 // Igual ao call(), mas sem bloquear a tela com o "Carregando…" — usado quando a tela já foi
 // atualizada de forma otimista e o usuário pode continuar usando o app enquanto salva atrás.
-function callSilent(fn){var args=[].slice.call(arguments,1);args=withQuem(fn,args);return new Promise(function(ok,ko){google.script.run.withSuccessHandler(ok).withFailureHandler(function(e){alertErr(e);ko(e)})[fn].apply(null,args)})}
+function callSilent(fn){var args=[].slice.call(arguments,1);args=withQuem(fn,args);return new Promise(function(ok,ko){gsr().withSuccessHandler(ok).withFailureHandler(function(e){alertErr(e);ko(e)})[fn].apply(null,args)})}
 function alertErr(e){toast('Erro: '+(e&&e.message||e))}
 function d(s){if(!s)return null;var x=new Date(String(s).length<=10?s+'T00:00:00':s);return isNaN(x)?null:x}
 function fmt(s){var x=d(s);return x?('0'+x.getDate()).slice(-2)+'/'+('0'+(x.getMonth()+1)).slice(-2):''}
@@ -995,9 +995,9 @@ function waLink(n,msg){var p=String(n||'').replace(/\D/g,'');if(!p)return '';if(
 function igLink(h){h=String(h||'').trim();if(!h)return '';if(/^http/.test(h))return h;return 'https://instagram.com/'+h.replace(/^@/,'')}
 function opts(list,sel,blank){return (blank!==undefined?'<option value="">'+blank+'</option>':'')+list.map(function(x){return '<option'+(x===sel?' selected':'')+'>'+esc(x)+'</option>'}).join('')}
 
-function load(){busy(true);google.script.run.withSuccessHandler(function(r){busy(false);setData(r);render();intLoad()}).withFailureHandler(function(e){busy(false);$('main').innerHTML='<div class="card">Não foi possível carregar: '+esc(e.message||e)+'</div>'}).getAll()}
+function load(){busy(true);gsr().withSuccessHandler(function(r){busy(false);setData(r);render();intLoad()}).withFailureHandler(function(e){busy(false);$('main').innerHTML='<div class="card">Não foi possível carregar: '+esc(e.message||e)+'</div>'}).getAll()}
 function setData(r){D=r;var saved='';try{saved=localStorage.getItem('morphe_me')||''}catch(e){}
-  ME=(r.me&&r.me.nome)||saved||'';if(!F._ini&&ME){F.resp=ME;F._ini=1}var s=$('meSel');s.innerHTML=opts(D.users.map(function(u){return u.nome}),ME,'👤 Escolha seu nome');s.className=ME?'':'vazio';s.onchange=function(){ME=s.value;F.resp=ME;s.className=ME?'':'vazio';try{localStorage.setItem('morphe_me',ME)}catch(e){};render()};}
+  ME=(r.me&&r.me.nome)||saved||'';if(!F._ini&&ME){F.resp=ME;F._ini=1}var s=$('meSel');s.innerHTML=opts(D.users.map(function(u){return u.nome}),ME,'👤 Escolha seu nome');if(EXT.on){s.disabled=true;ME=EXT.nome}s.className=ME?'':'vazio';s.onchange=function(){ME=s.value;F.resp=ME;s.className=ME?'':'vazio';try{localStorage.setItem('morphe_me',ME)}catch(e){};render()};}
 function upsertById_(arr,item){if(!item)return;var i=arr.findIndex(function(x){return x.ID===item.ID});if(i>=0)arr[i]=item;else arr.unshift(item)}
 // Aplica a mudança na tela ANTES da resposta do servidor (otimista) e desfaz se a chamada falhar.
 function otimista(leadId,patch,fn){var l=lead(leadId);var antes=l?Object.assign({},l):null;if(l){Object.assign(l,patch);render()}return fn().catch(function(e){if(l&&antes){Object.assign(l,antes);render()}throw e})}
@@ -1455,7 +1455,39 @@ function vPosVenda(){
 }
 
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrawer()});
-load();
+/* ===================== Entrada: domínio (como sempre) ou código de acesso ===================== */
+var EXT={on:false,tok:'',nome:'',cod:''};
+function gsr(){return EXT.on?extRun(null,null):google.script.run}
+function extRun(ok,ko){return new Proxy({},{get:function(_,n){
+  if(n==='withSuccessHandler')return function(f){return extRun(f,ko)};
+  if(n==='withFailureHandler')return function(f){return extRun(ok,f)};
+  return function(){extCall(n,[].slice.call(arguments),ok,ko,0)}}})}
+function extCall(n,a,ok,ko,t){google.script.run
+  .withSuccessHandler(function(r){if(ok)ok(r)})
+  .withFailureHandler(function(e){var m=String((e&&e.message)||e);
+    if(t<1&&/SESSAO_/.test(m)&&EXT.cod){extLogin(EXT.cod).then(function(){extCall(n,a,ok,ko,t+1)}).catch(function(){if(ko)ko(e)})}
+    else if(ko)ko(e)})
+  .apiExterna(EXT.tok,n,a)}
+function extLogin(cod){return new Promise(function(res,rej){google.script.run
+  .withSuccessHandler(function(r){EXT.on=true;EXT.tok=r.token;EXT.nome=r.nome;EXT.cod=cod;try{localStorage.setItem('morphe_cod',cod)}catch(e){}res(r)})
+  .withFailureHandler(function(e){rej(e)}).entrarComCodigo(cod)})}
+function telaCodigo(msg){var t=document.getElementById('telaCodigo');if(!t){
+  document.body.insertAdjacentHTML('beforeend','<div id="telaCodigo" style="position:fixed;inset:0;z-index:99999;background:#054A37;display:flex;align-items:center;justify-content:center;padding:16px;font-family:Inter,Arial,sans-serif">'
+   +'<form id="fCodigo" style="background:#FBF6EA;border-radius:16px;padding:32px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35)">'
+   +'<div style="font-family:Anton,Impact,sans-serif;font-size:30px;color:#054A37;letter-spacing:.4px">Morphê <span style="color:#006E51">Comercial</span></div>'
+   +'<p style="color:#4B5E55;font-size:14px;margin:10px 0 18px">Digite o seu código de acesso para entrar.</p>'
+   +'<input id="inCodigo" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX" style="width:100%;box-sizing:border-box;padding:12px 14px;font-size:16px;letter-spacing:1px;border:1px solid #D9C9A8;border-radius:10px;background:#fff">'
+   +'<div id="erroCodigo" style="color:#B4380F;font-size:13px;min-height:20px;margin:8px 0"></div>'
+   +'<button id="btCodigo" type="submit" style="width:100%;padding:12px;border:0;border-radius:10px;background:#FA5528;color:#fff;font-weight:700;font-size:15px;cursor:pointer">Entrar</button></form></div>');
+  document.getElementById('fCodigo').onsubmit=function(ev){ev.preventDefault();var c=document.getElementById('inCodigo').value,b=document.getElementById('btCodigo');if(!c.trim())return;b.disabled=true;b.textContent='Entrando…';
+    extLogin(c).then(function(){var x=document.getElementById('telaCodigo');if(x)x.remove();load()}).catch(function(e){b.disabled=false;b.textContent='Entrar';document.getElementById('erroCodigo').textContent=String((e&&e.message)||e).replace(/^Error:\s*/,'')})}}
+  document.getElementById('erroCodigo').textContent=msg||'';var i=document.getElementById('inCodigo');if(i)i.focus()}
+function entrarExterno(){var c='';try{c=localStorage.getItem('morphe_cod')||''}catch(e){}
+  if(!c){telaCodigo('');return}
+  extLogin(c).then(function(){load()}).catch(function(e){try{localStorage.removeItem('morphe_cod')}catch(x){}telaCodigo(String((e&&e.message)||e).replace(/^Error:\s*/,''))})}
+function iniciar(){google.script.run.withSuccessHandler(function(a){if(a&&a.modo==='externo')entrarExterno();else load()}).withFailureHandler(function(){load()}).getAcesso()}
+
+iniciar();
 </script>
 </body>
 </html>

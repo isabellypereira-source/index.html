@@ -14,6 +14,9 @@ let META={kg:300,periodo:'mensal'};
 const meta=()=>META;
 const inteligencia=()=>M.montarInteligencia_(mon,HOJE,meta());
 const H={
+ getAcesso:()=>({modo:process.env.EXT_TEST?'externo':'interno'}),
+ entrarComCodigo:(c)=>{if(String(c).toUpperCase().replace(/[^A-Z0-9]/g,'')!=='TESTE1234ABCD')throw new Error('Código inválido.');if(!crm.users.find(u=>u.nome==='Rayssa'))crm.users.push({nome:'Rayssa',email:'ray@hiconnexions.com'});return {token:'tok-ok',nome:'Rayssa',email:'ray@hiconnexions.com'}},
+ apiExterna:(t,fn,args)=>{if(t!=='tok-ok')throw new Error('SESSAO_EXPIRADA');if(!H[fn]||['apiExterna','entrarComCodigo','getAcesso'].includes(fn))throw new Error('Função não permitida: '+fn);const r=H[fn](...(args||[]));if(fn==='getAll')r.me={nome:'Rayssa',email:'ray@hiconnexions.com'};return r},
  getAll:()=>({me:{nome:'Isa',email:'isabelly.pereira@bioedtech.com.br'},leads:crm.leads,atividades:crm.atividades,users:crm.users,etapas:['Sugerido','Mapeado','Contato feito','Respondeu','Amostra enviada','Negociação','Ganho','Frio','Perdido'],segmentos:crm.segmentos,origens:crm.origens,canais:crm.canais,resultados:crm.resultados,motivos:crm.motivos,temChaveMaps:true,metaContatosSemana:30,metaGanhosMes:4,modelos:[],rodizio:crm.users.map(u=>u.nome)}),
  getInteligencia:()=>inteligencia(),
  salvarMetaKg:(kg,per)=>{META={kg:+kg,periodo:per};return inteligencia()},
