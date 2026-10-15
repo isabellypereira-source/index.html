@@ -17,15 +17,21 @@ function exigir_() { if (ACESSO_EXT_ || internoOk_()) return; throw new Error('S
 /** Primeira chamada da página: diz se precisa de código. Não devolve nenhum dado. */
 function getAcesso() { return { modo: internoOk_() ? 'interno' : 'externo' }; }
 
+/** Na planilha só fica o HASH do código ("sha256:sal:hash"); o código em si nunca é gravado. */
+function normCodigo_(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function hashCodigo_(sal, cod) {
+  var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, sal + ':' + normCodigo_(cod), Utilities.Charset.UTF_8);
+  return b.map(function (x) { return ('0' + (x & 0xff).toString(16)).slice(-2); }).join('');
+}
+function confereCodigo_(valor, cod) { var p = String(valor).split(':'); return p.length === 3 && p[0] === 'sha256' && hashCodigo_(p[1], cod) === p[2]; }
 function codigosExternos_() {
   var v = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config').getRange('I2:J60').getValues(), out = [];
   v.forEach(function (r) {
     var k = String(r[0]).trim();
-    if (k.indexOf(ACESSO_PREFIXO_) === 0 && String(r[1]).trim()) out.push({ nome: k.slice(ACESSO_PREFIXO_.length).trim(), codigo: normCodigo_(r[1]) });
+    if (k.indexOf(ACESSO_PREFIXO_) === 0 && String(r[1]).trim()) out.push({ nome: k.slice(ACESSO_PREFIXO_.length).trim(), valor: String(r[1]).trim() });
   });
   return out;
 }
-function normCodigo_(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 function emailDoUsuario_(nome) {
   var v = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config').getRange('F2:G30').getValues();
   for (var i = 0; i < v.length; i++) if (String(v[i][0]).trim() === nome) return String(v[i][1]).trim().toLowerCase();
@@ -44,7 +50,7 @@ function entrarComCodigo(codigo) {
   var cache = CacheService.getScriptCache(), falhas = +(cache.get('acs_falhas') || 0);
   if (falhas >= 20) throw new Error('Muitas tentativas. Aguarde 15 minutos e tente de novo.');
   var c = normCodigo_(codigo), achou = null;
-  if (c.length >= 8) codigosExternos_().forEach(function (x) { if (x.codigo && x.codigo === c) achou = x; });
+  if (c.length >= 12) codigosExternos_().forEach(function (x) { if (confereCodigo_(x.valor, c)) achou = x; });
   if (!achou) {
     cache.put('acs_falhas', String(falhas + 1), 900); Utilities.sleep(1500);
     logAcesso_('(desconhecido)', 'código recusado');
@@ -77,14 +83,17 @@ function apiExterna(token, fn, args) {
   return globalThis[fn].apply(null, args || []);
 }
 
-/** Migração: cria a linha do código da Rayssa no Config, se ainda não existir (o código é gerado aqui, nunca fica no repositório). */
+/** Sementes de código (hash), preenchidas na publicação. Cria a linha no Config se ela ainda não existir. */
+var ACESSO_SEMENTES_ = {};
 function migrarAcessoExterno_() {
-  var C = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config'), v = C.getRange('I2:J60').getValues(), chave = ACESSO_PREFIXO_ + 'Rayssa', lin = -1, vazio = -1;
-  for (var i = 0; i < v.length; i++) { if (String(v[i][0]).trim() === chave) lin = i; if (vazio < 0 && !v[i][0] && !v[i][1]) vazio = i; }
-  if (lin >= 0) return 'código da Rayssa já existe';
-  if (vazio < 0) vazio = v.length;
-  var al = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', cod = '', u = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
-  for (var k = 0; k < 12; k++) { cod += al.charAt(parseInt(u.substr(k * 2, 2), 16) % al.length); if (k === 3 || k === 7) cod += '-'; }
-  C.getRange(vazio + 2, 9, 1, 2).setValues([[chave, cod]]);
-  return 'código da Rayssa criado na linha ' + (vazio + 2) + ' do Config';
+  var C = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config'), msg = [];
+  Object.keys(ACESSO_SEMENTES_).forEach(function (nome) {
+    var v = C.getRange('I2:J60').getValues(), chave = ACESSO_PREFIXO_ + nome, lin = -1, vazio = -1;
+    for (var i = 0; i < v.length; i++) { if (String(v[i][0]).trim() === chave) lin = i; if (vazio < 0 && !v[i][0] && !v[i][1]) vazio = i; }
+    if (lin >= 0) { msg.push(nome + ': já existe'); return; }
+    if (vazio < 0) vazio = v.length;
+    C.getRange(vazio + 2, 9, 1, 2).setValues([[chave, ACESSO_SEMENTES_[nome]]]);
+    msg.push(nome + ': acesso criado na linha ' + (vazio + 2));
+  });
+  return msg.join('; ') || 'sem sementes';
 }
