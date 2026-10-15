@@ -2,15 +2,16 @@
 const vm=require('vm'),fs=require('fs'),path=require('path');
 const dir=process.argv[2];
 const files=fs.readdirSync(dir).filter(f=>/\.(js|gs)$/.test(f));
-function novo(email){
+let ESCRITAS=[];
+function novo(email,semLinha){
   const cache={};const cfg=[['Segmentos','Origens','Canais','Resultados','Motivos','Usuários (nome)','E-mail','','Configuração','Valor'],
-   ['x','','','','','Isa','isabelly.pereira@bioedtech.com.br','','Meta v2: kg','100'],['','','','','','Rayssa','ray@hiconnexions.com','','Código de acesso: Rayssa','sha256:abc123:'+require('crypto').createHash('sha256').update('abc123:ABCD2345WXYZ1234').digest('hex')]];
-  const sheet=(rows)=>({getRange:(r,c,nr,nc)=>{if(typeof r==='string'){const m=r.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);const c1=m[1].charCodeAt(0)-65,c2=m[3].charCodeAt(0)-65,r1=+m[2]-1,r2=+m[4];return {getValues:()=>rows.slice(r1,r2).map(x=>{const o=[];for(let i=c1;i<=c2;i++)o.push(x[i]===undefined?'':x[i]);return o}),setValues(){},setValue(){}}}return {getValues:()=>[[]],setValues(){},setValue(){}}},getLastRow:()=>10,getLastColumn:()=>10,appendRow(){},setFrozenRows(){}});
+   ['x','','','','','Isa','isabelly.pereira@bioedtech.com.br','','Meta v2: kg','100'],['','','','','','Rayssa','ray@hiconnexions.com','',semLinha?'':'Código de acesso: Rayssa',semLinha?'':'sha256:abc123:'+require('crypto').createHash('sha256').update('abc123:ABCD2345WXYZ1234').digest('hex')]];
+  const sheet=(rows)=>({getRange:(r,c,nr,nc)=>{if(typeof r==='string'){const m=r.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);const c1=m[1].charCodeAt(0)-65,c2=m[3].charCodeAt(0)-65,r1=+m[2]-1,r2=+m[4];return {getValues:()=>rows.slice(r1,r2).map(x=>{const o=[];for(let i=c1;i<=c2;i++)o.push(x[i]===undefined?'':x[i]);return o}),setValues(v){ESCRITAS.push(v)},setValue(){}}}return {getValues:()=>[[]],setValues(v){ESCRITAS.push(v)},setValue(){}}},getLastRow:()=>10,getLastColumn:()=>10,appendRow(){},setFrozenRows(){}});
   const ss={getSheetByName:(n)=>n==='Config'?sheet(cfg):(n==='Acessos'?sheet([]):null),insertSheet:()=>sheet([])};
   const ctx={console,Logger:{log(){}},Utilities:{getUuid:()=>require('crypto').randomUUID(),sleep(){},formatDate:()=>'',DigestAlgorithm:{SHA_256:'s'},Charset:{UTF_8:'u'},computeDigest:(a,t)=>[...require('crypto').createHash('sha256').update(t).digest()].map(x=>x>127?x-256:x)},
    Session:{getActiveUser:()=>({getEmail:()=>email}),getEffectiveUser:()=>({getEmail:()=>'isabelly.pereira@bioedtech.com.br'})},
    CacheService:{getScriptCache:()=>({get:k=>cache[k]??null,put:(k,v)=>{cache[k]=v},remove:k=>{delete cache[k]}})},
-   SpreadsheetApp:{getActiveSpreadsheet:()=>ss,openById:()=>ss},PropertiesService:{getScriptProperties:()=>({getProperty:()=>null,setProperty(){}})},
+   SpreadsheetApp:{getActiveSpreadsheet:()=>null,openById:()=>ss},PropertiesService:{getScriptProperties:()=>({getProperty:()=>null,setProperty(){}})},
    LockService:{getScriptLock:()=>({waitLock(){},releaseLock(){}})},ScriptApp:{},UrlFetchApp:{},HtmlService:{},MailApp:{},GmailApp:{},module:undefined};
   vm.createContext(ctx);
   // ordem: Código, Inteligencia, Acesso
@@ -46,4 +47,9 @@ for(const email of ['','alguem@gmail.com','x@bioedtech.com.br.evil.com']){
  for(let i=0;i<21;i++)try{c.entrarComCodigo('ERRADO'+i+'XXXX')}catch(e){}
  let e8='';try{c.entrarComCodigo('ABCD-2345-WXYZ-1234')}catch(e){e8=e.message}ok(/Muitas tentativas/.test(e8),'bloqueia após muitas tentativas erradas');
 }
+// 4) migração cria a linha (script autônomo: getActiveSpreadsheet() é nulo)
+{const c=novo('isabelly.pereira@bioedtech.com.br',true);ESCRITAS=[];let r='';try{r=c.migrarAcessoExterno_()}catch(e){r='ERRO '+e.message}
+ const linha=ESCRITAS.flat().find(x=>String(x[0]).indexOf('Código de acesso: ')===0);
+ const semente=Object.keys(c.ACESSO_SEMENTES_||{}).length;
+ if(semente){ok(!!linha&&/^sha256:[0-9a-f]+:[0-9a-f]{64}$/.test(linha[1]),'migração grava a linha com hash (sem código em claro) -> '+r)}else{ok(r==='sem sementes','sem sementes aplicadas (repositório): '+r)}}
 console.log(falhas?('\n'+falhas+' FALHA(S)'):'\nTudo certo');process.exit(falhas?1:0);

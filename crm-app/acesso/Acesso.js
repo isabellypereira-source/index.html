@@ -25,7 +25,7 @@ function hashCodigo_(sal, cod) {
 }
 function confereCodigo_(valor, cod) { var p = String(valor).split(':'); return p.length === 3 && p[0] === 'sha256' && hashCodigo_(p[1], cod) === p[2]; }
 function codigosExternos_() {
-  var v = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config').getRange('I2:J60').getValues(), out = [];
+  var v = ss_().getSheetByName('Config').getRange('I2:J60').getValues(), out = [];
   v.forEach(function (r) {
     var k = String(r[0]).trim();
     if (k.indexOf(ACESSO_PREFIXO_) === 0 && String(r[1]).trim()) out.push({ nome: k.slice(ACESSO_PREFIXO_.length).trim(), valor: String(r[1]).trim() });
@@ -33,13 +33,13 @@ function codigosExternos_() {
   return out;
 }
 function emailDoUsuario_(nome) {
-  var v = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config').getRange('F2:G30').getValues();
+  var v = ss_().getSheetByName('Config').getRange('F2:G30').getValues();
   for (var i = 0; i < v.length; i++) if (String(v[i][0]).trim() === nome) return String(v[i][1]).trim().toLowerCase();
   return '';
 }
 function logAcesso_(nome, evento) {
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet(), s = ss.getSheetByName('Acessos');
+    var ss = ss_(), s = ss.getSheetByName('Acessos');
     if (!s) { s = ss.insertSheet('Acessos'); s.appendRow(['Data', 'Pessoa', 'Evento']); s.setFrozenRows(1); }
     s.appendRow([new Date(), nome, evento]);
   } catch (e) {}
@@ -86,7 +86,7 @@ function apiExterna(token, fn, args) {
 /** Sementes de código (hash), preenchidas na publicação. Cria a linha no Config se ela ainda não existir. */
 var ACESSO_SEMENTES_ = {};
 function migrarAcessoExterno_() {
-  var C = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config'), msg = [];
+  var C = ss_().getSheetByName('Config'), msg = [];
   Object.keys(ACESSO_SEMENTES_).forEach(function (nome) {
     var v = C.getRange('I2:J60').getValues(), chave = ACESSO_PREFIXO_ + nome, lin = -1, vazio = -1;
     for (var i = 0; i < v.length; i++) { if (String(v[i][0]).trim() === chave) lin = i; if (vazio < 0 && !v[i][0] && !v[i][1]) vazio = i; }
